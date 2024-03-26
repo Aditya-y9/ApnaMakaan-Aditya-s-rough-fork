@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from test import population as population_final
+import random
 
 
 class RoomPlanner(object):
@@ -133,8 +134,12 @@ class RoomPlanner(object):
 
         rooms = {'rooms': [], 'fitness': 0}
 
+        connections = []
+
         corner_clear = {'top_left': True, 'top_right': True, 'bottom_left': True, 'bottom_right': True}
+        
         room_cords = {}
+
         living_room,corner,room_cords = self.generate_living_room(floor_plan,corner_clear,room_cords)
         rooms['rooms'].append(living_room)
 
@@ -186,8 +191,56 @@ class RoomPlanner(object):
             self.resolve_collisions(floor_plan, living_room['position'], living_room['size'])
             # add living room with its co-ordinates to the room_cords
             room_cords['living_room'] = living_room['position']
+            room_cords['living_room_size'] = living_room['size']
             return living_room,corner,room_cords
         return None
+    
+
+    def generate_passage(self, floor_plan, room, corner, room_cords):
+        # make passage in between the plot with a random +-5% change from center
+        # passage should be at the center of the plot
+
+
+        living_room_position = room_cords['living_room']
+        living_room_size = room_cords['living_room_size']
+
+        passage_width = self.PLOT_SIZE[0] // 10 + random.randint(-0.1,0.1)*self.PLOT_SIZE[0]
+        passage_height = self.PLOT_SIZE[1] // 5 + random.randint(-0.1,0.1)*self.PLOT_SIZE[1]
+
+
+        # generate passage starting from living room's boundary
+
+        # co-ordinate is the bottom left corner of the room
+        # place the passage so that it is 1. not outside the plot
+        # 2. not inside the room
+        if living_room_position[0] - passage_width >= 0 and living_room_position[0] + passage_width <= self.PLOT_SIZE[0] and living_room_position[1] - passage_height >= 0 and living_room_position[1] + passage_height <= self.PLOT_SIZE[1]:
+            passage_position = (living_room_position[0] - passage_width, living_room_position[1])
+        elif living_room_position[0] - passage_width < 0 and living_room_position[0] + passage_width <= self.PLOT_SIZE[0] and living_room_position[1] - passage_height >= 0 and living_room_position[1] + passage_height <= self.PLOT_SIZE[1]:
+            passage_position = (0, living_room_position[1])
+        elif living_room_position[0] - passage_width >= 0 and living_room_position[0] + passage_width > self.PLOT_SIZE[0] and living_room_position[1] - passage_height >= 0 and living_room_position[1] + passage_height <= self.PLOT_SIZE[1]:
+            passage_position = (living_room_position[0] - passage_width, living_room_position[1])
+        elif living_room_position[0] - passage_width >= 0 and living_room_position[0] + passage_width <= self.PLOT_SIZE[0] and living_room_position[1] - passage_height < 0 and living_room_position[1] + passage_height <= self.PLOT_SIZE[1]:
+            passage_position = (living_room_position[0], 0)
+        elif living_room_position[0] - passage_width >= 0 and living_room_position[0] + passage_width <= self.PLOT_SIZE[0] and living_room_position[1] - passage_height >= 0 and living_room_position[1] + passage_height > self.PLOT_SIZE[1]:
+            passage_position = (living_room_position[0], living_room_position[1] - passage_height)
+        else:
+            passage_position = (0, 0)
+
+        if self.check_collision(floor_plan, passage['position'], passage['size']):
+            self.resolve_collisions(floor_plan, passage['position'], passage['size'])
+            room_cords['passage'] = passage['position']
+            return passage, room_cords
+        
+        return None
+
+        # if(self.PLOT_SIZE[0] > self.PLOT_SIZE[1]):
+        #     passage_width = self.PLOT_SIZE[0] // 10
+        #     passage_height = self.PLOT_SIZE[1] // 5
+        # else:
+        #     passage_width = self.PLOT_SIZE[0] // 5
+        #     passage_height = self.PLOT_SIZE[1] // 10
+
+        # passage = {'name': 'Passage', 'position': (self.PLOT_SIZE[0] // 2 + random.randint(-0.1,0.1)*self.PLOT_SIZE[0], self.PLOT_SIZE[1] // 2 + random.randint(-0.1,0.1)*self.PLOT_SIZE[1]), 'size': (passage_width, passage_height)}
 
 
     def generate_random_room(self, floor_plan, room_name):
@@ -565,7 +618,7 @@ if __name__ == '__main__':
         print(population)
 
         population = planner.genetic_algorithm()
-        print(population)
+        print("This is " + str(population))
 
         planner.plot_rooms(population)
     # offspring1, offspring2 = planner.crossover(population[0], population[1])
