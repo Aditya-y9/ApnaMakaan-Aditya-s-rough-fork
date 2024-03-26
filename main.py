@@ -55,6 +55,7 @@ class RoomPlanner(object):
         while bedroom['size'][0] < self.BEDROOM_SIZE[0] or bedroom['size'][1] < self.BEDROOM_SIZE[1]:
             bedroom['size'] = (np.random.randint(1, self.PLOT_SIZE[0]), np.random.randint(1, self.PLOT_SIZE[1]))
         corner_clear = {'top_left': True, 'top_right': True, 'bottom_left': True, 'bottom_right': True}
+        existing_room_cords = {}
         corner = np.random.choice(['top_left', 'top_right', 'bottom_left', 'bottom_right'])
         if corner == 'top_left':
             bedroom['position'] = (0, 0)
@@ -130,24 +131,27 @@ class RoomPlanner(object):
 
         floor_plan = np.zeros(self.PLOT_SIZE)
 
-        rooms = []
+        rooms = {'rooms': [], 'fitness': 0}
 
         corner_clear = {'top_left': True, 'top_right': True, 'bottom_left': True, 'bottom_right': True}
+        room_cords = {}
+        living_room,corner,room_cords = self.generate_living_room(floor_plan,corner_clear,room_cords)
+        rooms['rooms'].append(living_room)
 
-        living_room,corner = self.generate_living_room(floor_plan,corner_clear)
-        rooms.append(living_room)
-
-        rooms.append(self.generate_door(floor_plan, living_room,corner))
+        rooms['rooms'].append(self.generate_door(floor_plan, living_room,corner,room_cords)[0])
         for i in range(self.MIN_NUM_ROOMS):
             room_name = f"Room_{i + 1}"
             room = self.generate_random_room(floor_plan, room_name)
             if room is not None:
-                rooms.append(room)
+                rooms['rooms'].append(room)
+
+            # fitness
+            rooms['fitness'] = self.calculate_area_fitness(rooms['rooms'])
         return rooms
     
     
 
-    def generate_living_room(self, floor_plan,corner_clear):
+    def generate_living_room(self, floor_plan,corner_clear,room_cords):
 
         living_room = {'name': 'Living Room', 'position': (0, 0), 'size': (40, 40)}
 
@@ -180,7 +184,9 @@ class RoomPlanner(object):
 
         if self.check_collision(floor_plan, living_room['position'], living_room['size']):
             self.resolve_collisions(floor_plan, living_room['position'], living_room['size'])
-            return living_room,corner
+            # add living room with its co-ordinates to the room_cords
+            room_cords['living_room'] = living_room['position']
+            return living_room,corner,room_cords
         return None
 
 
@@ -194,7 +200,7 @@ class RoomPlanner(object):
                 return room
         return None
     
-    def generate_door(self, floor_plan, room,corner):
+    def generate_door(self, floor_plan, room,corner,room_cords):
         # a quarter circle at one of the corners
         if corner == 'top_left':
             door_position = (room['position'][0], room['position'][1])
@@ -218,7 +224,8 @@ class RoomPlanner(object):
             door = {'name':'door','position': (room['position'][0] + room['size'][0], room['position'][1] + room['size'][1]), 'size': (-5,-5)}
         if self.check_collision(floor_plan, door['position'], door['size']):
             self.resolve_collisions(floor_plan, door['position'], door['size'])
-            return door
+            room_cords['door'] = door['position']
+            return door,room_cords
         return None
     
 
@@ -292,34 +299,60 @@ class RoomPlanner(object):
         fig, ax = plt.subplots()
         border = Rectangle((0, 0), self.PLOT_SIZE[0], self.PLOT_SIZE[1], fill=False, color='brown')
         ax.add_patch(border)
-        for room in rooms:
-            print(room)
-            # if(room['name'] == 'Door'):
-            #     # plot circles for doors
-            #     print("done")
-            #     position = room['position']
-            #     size = room['size']
-            #     ax.add_patch(plt.Circle((position[0], position[1]), 5, color='blue'))
-            #     continue
-            if(room==None):
-                continue
-            position = room['position']
-            size = room['size']
-            color = 'black' if room.get('external', False) else 'brown'
-            if room['name'] == 'Door':
-                rect = plt.Circle((position[0], position[1]), 5, color='blue', fill=True)
-            else:
-                rect = Rectangle((position[0], position[1]), size[0], size[1], linewidth=5, edgecolor=color, facecolor='none')
-            ax.add_patch(rect)
+        # rooms = [{'rooms':[{'name':'Living Room','position':(0,0),'size':(40,40)},{'name':'door','position':(0,0),'size':(5,5)}],'fitness':1600}]
+        rooms1 = rooms['rooms']
+        for room in rooms1:
+                if(room==None):
+                    continue
+                position = room['position']
+                size = room['size']
+                color = 'black' if room.get('external', False) else 'brown'
+                if room['name'] == 'Door':
+                    rect = plt.Circle((position[0], position[1]), 5, color='blue', fill=True)
+                else:
+                    rect = Rectangle((position[0], position[1]), size[0], size[1], linewidth=5, edgecolor=color, facecolor='none')
+                ax.add_patch(rect)
 
-            room_name = room['name']
-            room_center = (position[0] + size[0] / 2, position[1] + size[1] / 2)
-            ax.text(room_center[0], room_center[1], room_name, fontsize=12, ha='center', va='center')
+                room_name = room['name']
+                room_center = (position[0] + size[0] / 2, position[1] + size[1] / 2)
+                ax.text(room_center[0], room_center[1], room_name, fontsize=12, ha='center', va='center')
 
         ax.set_xlim(0, self.PLOT_SIZE[0])
         ax.set_ylim(0, self.PLOT_SIZE[1])
         ax.set_aspect('equal', adjustable='box')
         plt.show()
+
+        # for room in rooms:
+        #     # print("meri room")
+        #     # print(room)
+        #     # if(room['name'] == 'Door'):
+        #     #     # plot circles for doors
+        #     #     print("done")
+        #     #     position = room['position']
+        #     #     size = room['size']
+        #     #     ax.add_patch(plt.Circle((position[0], position[1]), 5, color='blue'))
+        #     #     continue
+        #     rooms1 = room['rooms']
+        #     for room in rooms1:
+        #         if(room==None):
+        #             continue
+        #         position = room['position']
+        #         size = room['size']
+        #         color = 'black' if room.get('external', False) else 'brown'
+        #         if room['name'] == 'Door':
+        #             rect = plt.Circle((position[0], position[1]), 5, color='blue', fill=True)
+        #         else:
+        #             rect = Rectangle((position[0], position[1]), size[0], size[1], linewidth=5, edgecolor=color, facecolor='none')
+        #         ax.add_patch(rect)
+
+        #         room_name = room['name']
+        #         room_center = (position[0] + size[0] / 2, position[1] + size[1] / 2)
+        #         ax.text(room_center[0], room_center[1], room_name, fontsize=12, ha='center', va='center')
+
+        #     ax.set_xlim(0, self.PLOT_SIZE[0])
+        #     ax.set_ylim(0, self.PLOT_SIZE[1])
+        #     ax.set_aspect('equal', adjustable='box')
+        #     plt.show()
 
 
     def plot_room_boundaries(self, rooms):
@@ -401,13 +434,13 @@ class RoomPlanner(object):
                 if best_floor_plan['fitness'] == np.prod(self.PLOT_SIZE):
                     return best_floor_plan
                 
-                if generation % 10 == 0:
-                    self.update_plot(best_floor_plan, ax)
-                    plt.pause(0.1)
-                    plt.draw()
+                # if generation % 10 == 0:
+                #     self.update_plot(best_floor_plan, ax)
+                #     plt.pause(0.1)
+                #     plt.draw()
 
-                if generation % 100 == 0:
-                    print(f"Generation {generation + 1}/{self.NUM_GENERATIONS}, Fitness: {best_floor_plan['fitness']}")
+                # if generation % 100 == 0:
+                #     print(f"Generation {generation + 1}/{self.NUM_GENERATIONS}, Fitness: {best_floor_plan['fitness']}")
 
             self.update_plot(best_floor_plan, ax)
             plt.pause(0.1)
@@ -415,6 +448,8 @@ class RoomPlanner(object):
             parents = self.select_parents(population)
             offspring = []
             for i in range(0, len(parents), 2):
+                if(i+1 >= len(parents)):
+                    break
                 offspring1, offspring2 = self.crossover(parents[i], parents[i + 1])
                 offspring.append(self.mutate(offspring1))
                 offspring.append(self.mutate(offspring2))
@@ -450,7 +485,7 @@ class RoomPlanner(object):
             edge_color = 'BLACK' if room.get('external', False) else 'BROWN'
             rect = Rectangle((position[0], position[1]), size[0], size[1], linewidth=5, edgecolor=edge_color, facecolor='none')
             # ax.add_patch(rect)
-        plt.title(f'Generation {generation}, Fitness: {best_floor_plan["fitness"]}')
+        # plt.title(f'Generation {generation}, Fitness: {best_floor_plan["fitness"]}')
         plt.draw()
         return ax
     
@@ -523,13 +558,14 @@ class RoomPlanner(object):
 if __name__ == '__main__':
     while True:
         planner = RoomPlanner()
-        # population = planner.generate_initial_population()
-        # print(population)
-        # print("Initial population generated")
-        # print("Plotting rooms...")
-        # print(population)
+        population = planner.generate_initial_population()
+        print(population)
+        print("Initial population generated")
+        print("Plotting rooms...")
+        print(population)
 
         population = planner.genetic_algorithm()
+        print(population)
 
         planner.plot_rooms(population)
     # offspring1, offspring2 = planner.crossover(population[0], population[1])
