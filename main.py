@@ -24,7 +24,7 @@ class RoomPlanner(object):
         self.GRID_SIZE = GRID_SIZE
         self.MIN_AREA = MIN_AREA
         self.BEDROOM_SIZE = (10, 10)
-        self.KITCHEN_SIZE = (5, 8)
+        self.KITCHEN_SIZE = (10,20)
         self.APPROXIMATION_FACTOR = 0.5
         self.MAX_XY_RATIO = 1.5
         self.MIN_XY_RATIO = 1
@@ -78,7 +78,7 @@ class RoomPlanner(object):
     
     def generate_narrow_kitchen(self, floor_plan, bedrooms):
     
-        kitchen = {'name': 'Kitchen', 'position': (0, 0), 'size': (5,8)}
+        kitchen = {'name': 'Kitchen', 'position': (0, 0), 'size': (0, 0)}
 
         while kitchen['size'][0] < self.KITCHEN_SIZE[0] or kitchen['size'][1] < self.KITCHEN_SIZE[1]:
             kitchen['size'] = (np.random.randint(1, self.PLOT_SIZE[0]), np.random.randint(1, self.PLOT_SIZE[1]))
@@ -101,6 +101,78 @@ class RoomPlanner(object):
             self.resolve_collisions(floor_plan, kitchen['position'], kitchen['size'])
             return kitchen
         return None
+    
+    def generate_narrow_kitchen(self, floor_plan, bedrooms,connection,room_cords):
+
+        connection = ["passage"]
+
+
+        # default kitchen size
+        kitchen = {'name': 'Kitchen', 'position': (0, 0), 'size': (5,8)}
+
+        neigbour  =  connection[0]
+        room_cords = room_cords[neigbour]
+        neigbour_position = room_cords['position']
+        neigbour_size = room_cords['size']
+
+        # put kitchen next to neighbour after checking the position of the neighbour and plot boundary
+
+        if neigbour_position[0] - kitchen['size'][0] >= 0 and neigbour_position[0] + kitchen['size'][0] <= self.PLOT_SIZE[0] and neigbour_position[1] - kitchen['size'][1] >= 0 and neigbour_position[1] + kitchen['size'][1] <= self.PLOT_SIZE[1]:
+            kitchen_position = (neigbour_position[0] - kitchen['size'][0], neigbour_position[1])
+        elif neigbour_position[0] - kitchen['size'][0] < 0 and neigbour_position[0] + kitchen['size'][0] <= self.PLOT_SIZE[0] and neigbour_position[1] - kitchen['size'][1] >= 0 and neigbour_position[1] + kitchen['size'][1] <= self.PLOT_SIZE[1]:
+            kitchen_position = (0, neigbour_position[1])
+        elif neigbour_position[0] - kitchen['size'][0] >= 0 and neigbour_position[0] + kitchen['size'][0] > self.PLOT_SIZE[0] and neigbour_position[1] - kitchen['size'][1] >= 0 and neigbour_position[1] + kitchen['size'][1] <= self.PLOT_SIZE[1]:
+            kitchen_position = (neigbour_position[0] - kitchen['size'][0], neigbour_position[1])
+        elif neigbour_position[0] - kitchen['size'][0] >= 0 and neigbour_position[0] + kitchen['size'][0] <= self.PLOT_SIZE[0] and neigbour_position[1] - kitchen['size'][1] < 0 and neigbour_position[1] + kitchen['size'][1] <= self.PLOT_SIZE[1]:
+            kitchen_position = (neigbour_position[0], 0)
+        elif neigbour_position[0] - kitchen['size'][0] >= 0 and neigbour_position[0] + kitchen['size'][0] <= self.PLOT_SIZE[0] and neigbour_position[1] - kitchen['size'][1] >= 0 and neigbour_position[1] + kitchen['size'][1] > self.PLOT_SIZE[1]:
+            kitchen_position = (neigbour_position[0], neigbour_position[1] - kitchen['size'][1])
+        else:
+            kitchen_position = (0, 0)
+
+
+        if self.check_collision(floor_plan, kitchen['position'], kitchen['size']):
+            self.resolve_collisions(floor_plan, kitchen['position'], kitchen['size'])
+            return kitchen
+        return None
+    
+
+    def generate_narrow_kitchen_neigbour(self, floor_plan, bedrooms, room_cords):
+        connection = ["passage"]
+
+        # Default kitchen size
+        kitchen = {'name': 'Kitchen', 'position': (0, 0), 'size': (5, 8)}
+
+        neighbor = connection[0]
+        neighbor_coords = room_cords[neighbor]
+        print('this room_cords' + str(room_cords))
+        neighbor_position = neighbor_coords
+        neighbor_size = room_cords[neighbor + '_size']
+
+        # Determine the side of the neighbor to share the wall with
+        shared_side = random.choice(['left', 'right', 'top', 'bottom'])
+
+        # Calculate kitchen position based on the shared side
+        if shared_side == 'left':
+            kitchen_position = (neighbor_position[0] - kitchen['size'][0], neighbor_position[1])
+        elif shared_side == 'right':
+            kitchen_position = (neighbor_position[0] + neighbor_size[0], neighbor_position[1])
+        elif shared_side == 'top':
+            kitchen_position = (neighbor_position[0], neighbor_position[1] + neighbor_size[1])
+        elif shared_side == 'bottom':
+            kitchen_position = (neighbor_position[0], neighbor_position[1] - kitchen['size'][1])
+
+        # Ensure the kitchen stays within the plot size
+        kitchen_position = (max(0, min(kitchen_position[0], self.PLOT_SIZE[0] - kitchen['size'][0])),
+                            max(0, min(kitchen_position[1], self.PLOT_SIZE[1] - kitchen['size'][1])))
+
+        if self.check_collision(floor_plan, kitchen_position, kitchen['size']):
+            self.resolve_collisions(floor_plan, kitchen_position, kitchen['size'])
+            kitchen['position'] = kitchen_position
+            return kitchen, room_cords
+        return None, room_cords
+
+    
     
     
     def generate_kitchen(self, floor_plan):
@@ -143,6 +215,16 @@ class RoomPlanner(object):
         living_room,corner,room_cords = self.generate_living_room(floor_plan,corner_clear,room_cords)
         rooms['rooms'].append(living_room)
 
+        # generate passage
+        passage,room_cords = self.generate_passage(floor_plan, living_room,corner,room_cords)
+        rooms['rooms'].append(passage)
+
+        kitchen,room_cords = self.generate_narrow_kitchen_neigbour(floor_plan, rooms, room_cords)
+
+        rooms['rooms'].append(kitchen)
+
+
+
         rooms['rooms'].append(self.generate_door(floor_plan, living_room,corner,room_cords)[0])
         for i in range(self.MIN_NUM_ROOMS):
             room_name = f"Room_{i + 1}"
@@ -158,10 +240,14 @@ class RoomPlanner(object):
 
     def generate_living_room(self, floor_plan,corner_clear,room_cords):
 
-        living_room = {'name': 'Living Room', 'position': (0, 0), 'size': (40, 40)}
+        living_room = {'name': 'Living Room', 'position': (0, 0), 'size': (self.PLOT_SIZE[0], self.PLOT_SIZE[1])}
 
-        while (living_room['size'][0] <= self.MIN_LIVING_ROOM_SIZE[0] or living_room['size'][1] <= self.MIN_LIVING_ROOM_SIZE[1]) and (living_room['size'][0] / living_room['size'][1] < self.MIN_XY_RATIO or living_room['size'][0] / living_room['size'][1] > self.MAX_XY_RATIO):
+
+        while living_room['size'][0] < self.MIN_LIVING_ROOM_SIZE[0] or living_room['size'][1] < self.MIN_LIVING_ROOM_SIZE[1] or living_room['size'][0] / living_room['size'][1] < self.MIN_XY_RATIO or living_room['size'][0] / living_room['size'][1] > self.MAX_XY_RATIO:
             living_room['size'] = (np.random.randint(1, self.PLOT_SIZE[0]), np.random.randint(1, self.PLOT_SIZE[1]))
+
+        # while (living_room['size'][0] <= self.MIN_LIVING_ROOM_SIZE[0] or living_room['size'][1] <= self.MIN_LIVING_ROOM_SIZE[1]) and (living_room['size'][0] / living_room['size'][1] < self.MIN_XY_RATIO or living_room['size'][0] / living_room['size'][1] > self.MAX_XY_RATIO):
+        #     living_room['size'] = (np.random.randint(1, self.PLOT_SIZE[0]), np.random.randint(1, self.PLOT_SIZE[1]))
 
         available = []
         if corner_clear['top_left']:
@@ -196,7 +282,7 @@ class RoomPlanner(object):
         return None
     
 
-    def generate_passage(self, floor_plan, room, corner, room_cords):
+    def generate_passage1(self, floor_plan, room, corner, room_cords):
         # make passage in between the plot with a random +-5% change from center
         # passage should be at the center of the plot
 
@@ -204,8 +290,12 @@ class RoomPlanner(object):
         living_room_position = room_cords['living_room']
         living_room_size = room_cords['living_room_size']
 
-        passage_width = self.PLOT_SIZE[0] // 10 + random.randint(-0.1,0.1)*self.PLOT_SIZE[0]
-        passage_height = self.PLOT_SIZE[1] // 5 + random.randint(-0.1,0.1)*self.PLOT_SIZE[1]
+        if self.PLOT_SIZE[0] > self.PLOT_SIZE[1]:
+            passage_width = self.PLOT_SIZE[0] // 3
+            passage_height = self.PLOT_SIZE[1] // 10
+        else:
+            passage_width = self.PLOT_SIZE[0] // 10
+            passage_height = self.PLOT_SIZE[1] // 3
 
 
         # generate passage starting from living room's boundary
@@ -213,6 +303,7 @@ class RoomPlanner(object):
         # co-ordinate is the bottom left corner of the room
         # place the passage so that it is 1. not outside the plot
         # 2. not inside the room
+            
         if living_room_position[0] - passage_width >= 0 and living_room_position[0] + passage_width <= self.PLOT_SIZE[0] and living_room_position[1] - passage_height >= 0 and living_room_position[1] + passage_height <= self.PLOT_SIZE[1]:
             passage_position = (living_room_position[0] - passage_width, living_room_position[1])
         elif living_room_position[0] - passage_width < 0 and living_room_position[0] + passage_width <= self.PLOT_SIZE[0] and living_room_position[1] - passage_height >= 0 and living_room_position[1] + passage_height <= self.PLOT_SIZE[1]:
@@ -226,12 +317,62 @@ class RoomPlanner(object):
         else:
             passage_position = (0, 0)
 
-        if self.check_collision(floor_plan, passage['position'], passage['size']):
-            self.resolve_collisions(floor_plan, passage['position'], passage['size'])
-            room_cords['passage'] = passage['position']
-            return passage, room_cords
+        if self.check_collision(floor_plan, passage_position, (passage_width, passage_height)):
+            self.resolve_collisions(floor_plan, passage_position, (passage_width, passage_height))
+            room_cords['passage'] = passage_position
+            room_cords['passage_size'] = (passage_width, passage_height)
+            return {'name': 'Passage', 'position': passage_position, 'size': (passage_width, passage_height)},room_cords
         
         return None
+    
+
+    def generate_passage(self, floor_plan, room, corner, room_cords):
+        # Extracting hall's position and size
+        hall_position = room_cords['living_room']
+        hall_size = room_cords['living_room_size']
+
+        # Determine passage width and height based on plot dimensions
+        if self.PLOT_SIZE[0] > self.PLOT_SIZE[1]:
+            passage_width = self.PLOT_SIZE[0] // 3
+            passage_height = self.PLOT_SIZE[1] // 10
+        else:
+            passage_width = self.PLOT_SIZE[0] // 10
+            passage_height = self.PLOT_SIZE[1] // 3
+
+        # Randomly select a wall of the hall to connect the passage to
+        connecting_wall = random.choice(['left', 'right', 'top', 'bottom'])
+
+        # Calculate the position of the passage based on the connecting wall
+        if connecting_wall == 'left':
+            passage_position = (hall_position[0] - passage_width, hall_position[1])
+        elif connecting_wall == 'right':
+            passage_position = (hall_position[0] + hall_size[0], hall_position[1])
+        elif connecting_wall == 'top':
+            passage_position = (hall_position[0], hall_position[1] + hall_size[1])
+        elif connecting_wall == 'bottom':
+            passage_position = (hall_position[0], hall_position[1] - passage_height)
+
+        # Ensure the passage stays within the plot boundaries
+        passage_position = (
+            max(0, min(passage_position[0], self.PLOT_SIZE[0] - passage_width)),
+            max(0, min(passage_position[1], self.PLOT_SIZE[1] - passage_height))
+        )
+
+        # Check for collision and resolve if necessary
+        if self.check_collision(floor_plan, passage_position, (passage_width, passage_height)):
+            self.resolve_collisions(floor_plan, passage_position, (passage_width, passage_height))
+            # Update room_cords with passage position and size
+            room_cords['passage'] = passage_position
+            room_cords['passage_size'] = (passage_width, passage_height)
+            # Return passage details along with updated room_cords
+            return {'name': 'Passage', 'position': passage_position, 'size': (passage_width, passage_height)}, room_cords
+
+        return None
+
+    
+
+
+    
 
         # if(self.PLOT_SIZE[0] > self.PLOT_SIZE[1]):
         #     passage_width = self.PLOT_SIZE[0] // 10
@@ -284,7 +425,10 @@ class RoomPlanner(object):
 
     def calculate_area_fitness(self, floor_plan):
         total_area = 0
+        if type(floor_plan) == dict:
+            floor_plan = floor_plan['rooms']
         # high penalty for overlapping rooms
+        # print("This FP" + str(floor_plan))
     
         for room in floor_plan:
             total_area += room['size'][0] * room['size'][1]
@@ -298,21 +442,46 @@ class RoomPlanner(object):
         x_overlap = max(0, min(room1['position'][0] + room1['size'][0], room2['position'][0] + room2['size'][0]) - max(room1['position'][0], room2['position'][0]))
         y_overlap = max(0, min(room1['position'][1] + room1['size'][1], room2['position'][1] + room2['size'][1]) - max(room1['position'][1], room2['position'][1]))
         return x_overlap * y_overlap
+    
+    def calculate_area_fitness_for_crossover(self, floor_plan):
+        total_area = 0
+        # floor_plan  = {'rooms': [{'name': 'Living Room', 'position': (5, 61), 'size': (45, 39)}, {'name': 'Passage', 'position': (0, 61), 'size': (5, 33)}, {'name': 'door', 'position': (50, 100), 'size': (-5, -5)}], 'fitness': 1945}
+        # print("This FP" + str(floor_plan))
+        # print("This FP" + str(floor_plan['rooms']))
+
+        for room in floor_plan['rooms']:
+            # print("This room" + str(room))
+            total_area += room['size'][0] * room['size'][1]
+
+        # print("This total area" + str(total_area))
+        return total_area
+
 
     def crossover(self, parent1, parent2):
-        # change the logic
-        offspring1 = {'rooms': [], 'fitness': 0}
-        offspring2 = {'rooms': [], 'fitness': 0}
+        # # change the logic
+        # parent1 = []
+        # parent1.append(paren1)
+        # parent2 = []
+        # parent2.append(paren2)
+        # print("This parent1" + str(parent1))
+        offspring1 = {'rooms': [], 'fitness': self.calculate_area_fitness(parent1)}
+        offspring2 = {'rooms': [], 'fitness': self.calculate_area_fitness(parent2)}
         for room in parent1['rooms']:
             if np.random.rand() < 0.5:
                 offspring1['rooms'].append(room)
+                offspring1['fitness'] = self.calculate_area_fitness(offspring1['rooms'])
             else:
                 offspring2['rooms'].append(room)
+                offspring2['fitness'] = self.calculate_area_fitness(offspring2['rooms'])
         for room in parent2['rooms']:
             if np.random.rand() > 0.5:
                 offspring1['rooms'].append(room)
+                offspring1['fitness'] = self.calculate_area_fitness(offspring1['rooms'])
             else:
                 offspring2['rooms'].append(room)
+                offspring2['fitness'] = self.calculate_area_fitness(offspring2['rooms'])
+        
+
         return offspring1, offspring2
 
     def mutate(self, floor_plan):
@@ -349,6 +518,53 @@ class RoomPlanner(object):
         return (x, y), (width, height)
     
     def plot_rooms(self, rooms):
+        fig, ax = plt.subplots()
+        border = Rectangle((0, 0), self.PLOT_SIZE[0], self.PLOT_SIZE[1], fill=False, color='brown')
+        ax.add_patch(border)
+        for room in rooms:
+            print(room)
+            # if(room['name'] == 'Door'):
+            #     # plot circles for doors
+            #     print("done")
+            #     position = room['position']
+            #     size = room['size']
+            #     ax.add_patch(plt.Circle((position[0], position[1]), 5, color='blue'))
+            #     continue
+            if(room==None):
+                continue
+            position = room['position']
+            size = room['size']
+            color = 'black' if room.get('external', False) else 'brown'
+            if room['name'] == 'Door':
+                rect = plt.Circle((position[0], position[1]), 5, color='blue', fill=True)
+            else:
+                rect = Rectangle((position[0], position[1]), size[0], size[1], linewidth=5, edgecolor=color, facecolor='none')
+            ax.add_patch(rect)
+
+            room_name = room['name']
+            room_center = (position[0] + size[0] / 2, position[1] + size[1] / 2)
+            ax.text(room_center[0], room_center[1], room_name, fontsize=12, ha='center', va='center')
+
+        ax.set_xlim(0, self.PLOT_SIZE[0])
+        ax.set_ylim(0, self.PLOT_SIZE[1])
+        ax.set_aspect('equal', adjustable='box')
+        plt.show()
+
+
+    def plot_room_boundaries(self, rooms):
+        fig, ax = plt.subplots()
+        border = Rectangle((0, 0), self.PLOT_SIZE[0], self.PLOT_SIZE[1], fill=False, color='brown')
+        ax.add_patch(border)
+        for room in rooms:
+            position = room['position']
+            size = room['size']
+            ax.add_patch(Rectangle(position, size[0], size[1], fill=False, color='brown'))
+        ax.set_xlim(0, self.PLOT_SIZE[0])
+        ax.set_ylim(0, self.PLOT_SIZE[1])
+        plt.show()
+
+    
+    def genetic_plot_rooms(self, rooms):
         fig, ax = plt.subplots()
         border = Rectangle((0, 0), self.PLOT_SIZE[0], self.PLOT_SIZE[1], fill=False, color='brown')
         ax.add_patch(border)
@@ -617,10 +833,14 @@ if __name__ == '__main__':
         print("Plotting rooms...")
         print(population)
 
-        population = planner.genetic_algorithm()
-        print("This is " + str(population))
+        planner.plot_rooms(population[0]['rooms'])
 
-        planner.plot_rooms(population)
+
+        # population = planner.genetic_algorithm()
+        # print("This is " + str(population))
+
+        # planner.genetic_plot_rooms(population)
+
     # offspring1, offspring2 = planner.crossover(population[0], population[1])
     # planner.plot_rooms(offspring1['rooms'])
     # planner.plot_rooms(offspring2['rooms'])
