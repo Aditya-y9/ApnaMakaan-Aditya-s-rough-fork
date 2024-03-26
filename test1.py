@@ -2,9 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from test import population as population_final
+from input_converter import *
 import random
-
-
+global i1
+i1 = 0
 class RoomPlanner(object):
     def __init__(self, PLOT_SIZE=(50, 100), MIN_ROOM_SIZE=(10, 10), NUM_BEDROOMS=2,
                  POPULATION_SIZE=50, NUM_GENERATIONS=500, MUTATION_RATE=2,
@@ -29,6 +30,7 @@ class RoomPlanner(object):
         self.MAX_XY_RATIO = 1.5
         self.MIN_XY_RATIO = 1
         self.MIN_LIVING_ROOM_SIZE = (20, 20)
+
 
     def generate_initial_population(self):
     
@@ -138,7 +140,7 @@ class RoomPlanner(object):
     
 
     def generate_narrow_kitchen_neigbour(self, floor_plan, bedrooms, room_cords):
-        connection = ["passage"]
+        connection = kitchen_connections
 
         # Default kitchen size
         kitchen = {'name': 'Kitchen', 'position': (0, 0), 'size': (10,16)}
@@ -173,7 +175,8 @@ class RoomPlanner(object):
         return None, room_cords
     
     def generate_narrow_bedroom_neigbour(self, floor_plan, bedrooms, room_cords):
-        connection = ["passage"]
+
+        connection = bedroom1_connections
 
         # Default kitchen size
         kitchen = {'name': 'Bedroom', 'position': (0, 0), 'size': (20,20)}
@@ -203,7 +206,9 @@ class RoomPlanner(object):
         if self.check_collision(floor_plan, kitchen_position, kitchen['size']):
             self.resolve_collisions(floor_plan, kitchen_position, kitchen['size'])
             kitchen['position'] = kitchen_position
+            # i1 = i1 + 1
             return kitchen, room_cords
+        # i1 = i1 + 1
         return None, room_cords
 
     
@@ -260,6 +265,9 @@ class RoomPlanner(object):
         kitchen,room_cords = self.generate_narrow_bedroom_neigbour(floor_plan, rooms, room_cords)
 
         rooms['rooms'].append(kitchen)
+
+        # bedroom = self.generate_narrow_bedroom_neigbour(floor_plan, rooms, room_cords)
+        # rooms['rooms'].append(bedroom)
 
 
 
