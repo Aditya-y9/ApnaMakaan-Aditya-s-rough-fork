@@ -7,7 +7,7 @@ import random
 global i1
 i1 = 0
 class RoomPlanner(object):
-    def __init__(self, PLOT_SIZE=(50, 100), MIN_ROOM_SIZE=(10, 10), NUM_BEDROOMS=2,
+    def __init__(self, PLOT_SIZE=(80, 120), MIN_ROOM_SIZE=(10, 10), NUM_BEDROOMS=2,
                  POPULATION_SIZE=50, NUM_GENERATIONS=500, MUTATION_RATE=2,
                  MAX_MUTATION_PERCENTAGE=0.1, SIZE_INCREASE_FACTOR=1000,
                  COLLISION_RESOLUTION_STEPS=10, MIN_NUM_ROOMS=2,
@@ -176,6 +176,7 @@ class RoomPlanner(object):
     
 
 
+
     def generate_narrow_bedroom_neigbour(self, floor_plan, bedrooms, room_cords, i):
         bedroom1_connections = ["passage"]
 
@@ -242,7 +243,7 @@ class RoomPlanner(object):
             washroom_position = (max(0, min(washroom_position[0], self.PLOT_SIZE[0] - 9)),
                                 max(0, min(washroom_position[1], self.PLOT_SIZE[1] - 18)))
             
-            washroom = {'name': 'Washroom', 'position': washroom_position, 'size': (9, 18)}
+
 
             # Check for collision and resolve if necessary
             if self.check_collision(floor_plan, washroom_position, (9, 18)):
@@ -250,6 +251,29 @@ class RoomPlanner(object):
                 # Add washroom details to the room_cords
                 room_cords[free_wall] = washroom_position
                 room_cords[free_wall + '_size'] = (9, 18)
+        
+        washroom = None
+        if free_wall:
+            if free_wall == 'left':
+                washroom_position = (bedroom_position[0] - 9, bedroom_position[1])
+            elif free_wall == 'right':
+                washroom_position = (bedroom_position[0] + bedroom['size'][0], bedroom_position[1])
+            elif free_wall == 'top':
+                washroom_position = (bedroom_position[0], bedroom_position[1] + 18)
+            elif free_wall == 'bottom':
+                washroom_position = (bedroom_position[0], bedroom_position[1] - 18)
+
+            # Ensure the washroom stays within the plot size
+            washroom_position = (max(0, min(washroom_position[0], self.PLOT_SIZE[0] - 9)),
+                                max(0, min(washroom_position[1], self.PLOT_SIZE[1] - 18)))
+
+            # Check for collision and resolve if necessary
+            if self.check_collision(floor_plan, washroom_position, (9, 18)):
+                self.resolve_collisions(floor_plan, washroom_position, (9, 18))
+                # Add washroom details to the room_cords
+                room_cords[free_wall] = washroom_position
+                room_cords[free_wall + '_size'] = (9, 18)
+                washroom = {'name': 'Washroom', 'position': washroom_position, 'size': (9, 18)}
 
         # Check for collision and resolve if necessary for the bedroom
         if self.check_collision(floor_plan, bedroom_position, bedroom['size']):
@@ -325,8 +349,9 @@ class RoomPlanner(object):
         rooms['rooms'].append(bedroom1)
         rooms['rooms'].append(washroom)
 
-        # bedroom,room_cords = self.generate_narrow_bedroom_neigbour(floor_plan, rooms, room_cords,2)
-        # rooms['rooms'].append(bedroom)
+        bedroom2,washroom2,room_cords = self.generate_narrow_bedroom_neigbour(floor_plan, rooms, room_cords,2)
+        rooms['rooms'].append(bedroom2)
+        rooms['rooms'].append(washroom2)
 
 
 
@@ -439,11 +464,11 @@ class RoomPlanner(object):
 
         # Determine passage width and height based on plot dimensions
         if self.PLOT_SIZE[0] > self.PLOT_SIZE[1]:
-            passage_width = self.PLOT_SIZE[0] // 3
+            passage_width = int(0.6 * self.PLOT_SIZE[0])
             passage_height = self.PLOT_SIZE[1] // 4
         else:
             passage_width = self.PLOT_SIZE[0] // 4
-            passage_height = self.PLOT_SIZE[1] // 3
+            passage_height = int(0.6 * self.PLOT_SIZE[1])
 
         # Determine opposite connecting walls
         opposite_walls = {'left': 'right', 'right': 'left', 'top': 'bottom', 'bottom': 'top'}

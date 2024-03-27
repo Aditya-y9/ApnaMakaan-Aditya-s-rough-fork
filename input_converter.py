@@ -1,11 +1,14 @@
-matrix = [[0, 1, 1, 1],
-              [1, 0, 0, 0],
-              [1, 0, 0, 0],
-              [0, 1, 0, 0],
-            [0, 0, 1, 0]]
+matrix = [[0, 1, 1, 1, 1, 0, 0], 
+[1, 0, 0, 0, 0, 0, 0], 
+[1, 0, 0, 0, 0, 0, 0], 
+[1, 0, 0, 0, 0, 1, 0], 
+[1, 0, 0, 0, 0, 0, 1], 
+[0, 0, 0, 1, 0, 0, 0], 
+[0, 0, 0, 0, 1, 0, 0]]
 
 
-rooms = ["passage", "living_room", "kitchen", "bedroom1", "wc1"]
+
+rooms = ["passage", "living_room", "kitchen", "bedroom1", "bedroom2", "wc1", "wc2"]
 
 # Initialize connection lists for each room
 passage_connections = []
@@ -42,3 +45,6 @@ print("Passage connections: ", passage_connections)
 print("Living room connections: ", living_room_connections)
 print("Kitchen connections: ", kitchen_connections)
 print("Bedroom1 connections: ", bedroom1_connections)
+print("Bedroom2 connections: ", bedroom2_connections)
+print("WC1 connections: ", wc1_connections)
+print("WC2 connections: ", wc2_connections)
