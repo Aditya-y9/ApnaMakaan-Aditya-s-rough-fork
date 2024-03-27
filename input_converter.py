@@ -6,7 +6,7 @@ matrix = [[0, 1, 1, 1, 1, 0, 0],
           [0, 0, 0, 1, 0, 0, 0], 
           [0, 0, 0, 0, 1, 0, 0]]
 
-rooms = ["passage", "living_room", "kitchen", "room3", "room4", "room5", "room6"]
+rooms = ["passage", "living_room", "kitchen", "bedroom1", "bedroom2", "wc1", "wc2"]
 
 # Initialize connection lists for each room
 passage_connections = []

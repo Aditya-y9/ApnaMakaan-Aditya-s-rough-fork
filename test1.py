@@ -37,8 +37,8 @@ class RoomPlanner(object):
         population = [] # 1st to last 
 
 
-        for _ in range(self.POPULATION_SIZE):
-            population.append(self.generate_random_rooms())
+        # for _ in range(self.POPULATION_SIZE):
+        population.append(self.generate_random_rooms())
         return population
     
     def generate_bedrooms(self, floor_plan):
@@ -174,13 +174,15 @@ class RoomPlanner(object):
             return kitchen, room_cords
         return None, room_cords
     
-    def generate_narrow_bedroom_neigbour(self, floor_plan, bedrooms, room_cords):
+    def generate_narrow_bedroom_neigbour(self, floor_plan, bedrooms, room_cords,i):
 
         connection = bedroom1_connections
 
         # Default kitchen size
-        kitchen = {'name': 'Bedroom', 'position': (0, 0), 'size': (20,20)}
+        kitchen = {'name': 'Bedroom' + str(i), 'position': (0, 0), 'size': (20,20)}
         neighbor = connection[0]
+        if room_cords.get(neighbor) == None:
+            return {'name': 'Bedroom' + str(i), 'position': (0, 0), 'size': (20,20)}, room_cords
         neighbor_coords = room_cords[neighbor]
         print('this room_cords' + str(room_cords))
         neighbor_position = neighbor_coords
@@ -210,6 +212,13 @@ class RoomPlanner(object):
             return kitchen, room_cords
         # i1 = i1 + 1
         return None, room_cords
+
+
+    # def generate_washroom_attatched(self, floor_plan, bedrooms, room_cords):
+
+        
+
+
 
     
     
@@ -251,22 +260,24 @@ class RoomPlanner(object):
         
         room_cords = {}
 
+        living_room_wall_clear = {'left': True, 'right': True, 'top': True, 'bottom': True}
+
         living_room,corner,room_cords = self.generate_living_room(floor_plan,corner_clear,room_cords)
         rooms['rooms'].append(living_room)
 
         # generate passage
-        passage,room_cords = self.generate_passage(floor_plan, living_room,corner,room_cords)
+        passage,room_cords,living_room_wall_clear = self.generate_passage(floor_plan, living_room,corner,room_cords,living_room_wall_clear)
         rooms['rooms'].append(passage)
 
         kitchen,room_cords = self.generate_narrow_kitchen_neigbour(floor_plan, rooms, room_cords)
 
         rooms['rooms'].append(kitchen)
 
-        kitchen,room_cords = self.generate_narrow_bedroom_neigbour(floor_plan, rooms, room_cords)
+        kitchen,room_cords = self.generate_narrow_bedroom_neigbour(floor_plan, rooms, room_cords,1)
 
         rooms['rooms'].append(kitchen)
 
-        # bedroom = self.generate_narrow_bedroom_neigbour(floor_plan, rooms, room_cords)
+        # bedroom,room_cords = self.generate_narrow_bedroom_neigbour(floor_plan, rooms, room_cords,2)
         # rooms['rooms'].append(bedroom)
 
 
@@ -372,8 +383,9 @@ class RoomPlanner(object):
         return None
     
 
-    def generate_passage(self, floor_plan, room, corner, room_cords):
-        # Extracting hall's position and size
+    def generate_passage(self, floor_plan, room, corner, room_cords, living_room_wall_clear):
+        
+        passage_wall_clear = {'left': True, 'right': True, 'top': True, 'bottom': True}
         hall_position = room_cords['living_room']
         hall_size = room_cords['living_room_size']
 
@@ -385,17 +397,29 @@ class RoomPlanner(object):
             passage_width = self.PLOT_SIZE[0] // 4
             passage_height = self.PLOT_SIZE[1] // 3
 
+        # Determine opposite connecting walls
+        opposite_walls = {'left': 'right', 'right': 'left', 'top': 'bottom', 'bottom': 'top'}
+
         # Randomly select a wall of the hall to connect the passage to
         connecting_wall = random.choice(['left', 'right', 'top', 'bottom'])
 
         # Calculate the position of the passage based on the connecting wall
+        if connecting_wall in ['left', 'right']:
+            opposite_wall = opposite_walls[connecting_wall]
+            if not living_room_wall_clear[opposite_wall]:
+                connecting_wall = opposite_wall
+
         if connecting_wall == 'left':
+            living_room_wall_clear['left'] = False 
             passage_position = (hall_position[0] - passage_width, hall_position[1])
         elif connecting_wall == 'right':
+            living_room_wall_clear['right'] = False
             passage_position = (hall_position[0] + hall_size[0], hall_position[1])
         elif connecting_wall == 'top':
+            living_room_wall_clear['top'] = False
             passage_position = (hall_position[0], hall_position[1] + hall_size[1])
         elif connecting_wall == 'bottom':
+            living_room_wall_clear['bottom'] = False
             passage_position = (hall_position[0], hall_position[1] - passage_height)
 
         # Ensure the passage stays within the plot boundaries
@@ -411,9 +435,10 @@ class RoomPlanner(object):
             room_cords['passage'] = passage_position
             room_cords['passage_size'] = (passage_width, passage_height)
             # Return passage details along with updated room_cords
-            return {'name': 'Passage', 'position': passage_position, 'size': (passage_width, passage_height)}, room_cords
+            return {'name': 'Passage', 'position': passage_position, 'size': (passage_width, passage_height)}, room_cords, living_room_wall_clear
 
         return None
+
 
     
 
@@ -594,10 +619,9 @@ class RoomPlanner(object):
         ax.set_xlim(0, self.PLOT_SIZE[0])
         ax.set_ylim(0, self.PLOT_SIZE[1])
         ax.set_aspect('equal', adjustable='box')
-        plt.show(block=False)
-        plt.pause(0.5)
-        # plt.clf()
-        plt.close(fig)
+        plt.show()
+        # plt.pause(0.5)
+        # plt.close(fig)
 
 
     def plot_room_boundaries(self, rooms):
