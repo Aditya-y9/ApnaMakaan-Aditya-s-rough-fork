@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-from test import population as population_final
+# from test import population as population_final
 from input_converter import *
 import random
 global i1
@@ -174,44 +174,91 @@ class RoomPlanner(object):
             return kitchen, room_cords
         return None, room_cords
     
-    def generate_narrow_bedroom_neigbour(self, floor_plan, bedrooms, room_cords,i):
 
+
+    def generate_narrow_bedroom_neigbour(self, floor_plan, bedrooms, room_cords, i):
+        bedroom1_connections = ["passage"]
+
+        # Default bedroom size
+        bedroom = {'name': 'Bedroom' + str(i), 'position': (0, 0), 'size': (30, 30)}
+
+        # Get the connection of the bedroom
         connection = bedroom1_connections
 
-        # Default kitchen size
-        kitchen = {'name': 'Bedroom' + str(i), 'position': (0, 0), 'size': (20,20)}
+        # Get the neighbor room and its coordinates
         neighbor = connection[0]
-        if room_cords.get(neighbor) == None:
-            return {'name': 'Bedroom' + str(i), 'position': (0, 0), 'size': (20,20)}, room_cords
+        if room_cords.get(neighbor) is None:
+            # If no neighbor room exists, return the bedroom as is
+            return bedroom, room_cords
         neighbor_coords = room_cords[neighbor]
-        print('this room_cords' + str(room_cords))
         neighbor_position = neighbor_coords
         neighbor_size = room_cords[neighbor + '_size']
 
         # Determine the side of the neighbor to share the wall with
         shared_side = random.choice(['left', 'right', 'top', 'bottom'])
 
-        # Calculate kitchen position based on the shared side
+        # Calculate bedroom position based on the shared side
         if shared_side == 'left':
-            kitchen_position = (neighbor_position[0] - kitchen['size'][0], neighbor_position[1])
+            bedroom_position = (neighbor_position[0] - bedroom['size'][0], neighbor_position[1])
         elif shared_side == 'right':
-            kitchen_position = (neighbor_position[0] + neighbor_size[0], neighbor_position[1])
+            bedroom_position = (neighbor_position[0] + neighbor_size[0], neighbor_position[1])
         elif shared_side == 'top':
-            kitchen_position = (neighbor_position[0], neighbor_position[1] + neighbor_size[1])
+            bedroom_position = (neighbor_position[0], neighbor_position[1] + neighbor_size[1])
         elif shared_side == 'bottom':
-            kitchen_position = (neighbor_position[0], neighbor_position[1] - kitchen['size'][1])
+            bedroom_position = (neighbor_position[0], neighbor_position[1] - bedroom['size'][1])
 
-        # Ensure the kitchen stays within the plot size
-        kitchen_position = (max(0, min(kitchen_position[0], self.PLOT_SIZE[0] - kitchen['size'][0])),
-                            max(0, min(kitchen_position[1], self.PLOT_SIZE[1] - kitchen['size'][1])))
+        # Ensure the bedroom stays within the plot size
+        bedroom_position = (max(0, min(bedroom_position[0], self.PLOT_SIZE[0] - bedroom['size'][0])),
+                            max(0, min(bedroom_position[1], self.PLOT_SIZE[1] - bedroom['size'][1])))
 
-        if self.check_collision(floor_plan, kitchen_position, kitchen['size']):
-            self.resolve_collisions(floor_plan, kitchen_position, kitchen['size'])
-            kitchen['position'] = kitchen_position
-            # i1 = i1 + 1
-            return kitchen, room_cords
-        # i1 = i1 + 1
-        return None, room_cords
+        # Check if the chosen wall is connected to any other room
+        # If not connected, place the washroom outside that wall
+        free_wall = None
+        if shared_side == 'left':
+            if 'left' not in room_cords:
+                free_wall = 'left'
+        elif shared_side == 'right':
+            if 'right' not in room_cords:
+                free_wall = 'right'
+        elif shared_side == 'top':
+            if 'top' not in room_cords:
+                free_wall = 'top'
+        elif shared_side == 'bottom':
+            if 'bottom' not in room_cords:
+                free_wall = 'bottom'
+
+        # If a free wall is found, place the washroom outside that wall
+        if free_wall:
+            if free_wall == 'left':
+                washroom_position = (bedroom_position[0] - 9, bedroom_position[1])
+            elif free_wall == 'right':
+                washroom_position = (bedroom_position[0] + bedroom['size'][0], bedroom_position[1])
+            elif free_wall == 'top':
+                washroom_position = (bedroom_position[0], bedroom_position[1] + 18)
+            elif free_wall == 'bottom':
+                washroom_position = (bedroom_position[0], bedroom_position[1] - 18)
+
+            # Ensure the washroom stays within the plot size
+            washroom_position = (max(0, min(washroom_position[0], self.PLOT_SIZE[0] - 9)),
+                                max(0, min(washroom_position[1], self.PLOT_SIZE[1] - 18)))
+            
+            washroom = {'name': 'Washroom', 'position': washroom_position, 'size': (9, 18)}
+
+            # Check for collision and resolve if necessary
+            if self.check_collision(floor_plan, washroom_position, (9, 18)):
+                self.resolve_collisions(floor_plan, washroom_position, (9, 18))
+                # Add washroom details to the room_cords
+                room_cords[free_wall] = washroom_position
+                room_cords[free_wall + '_size'] = (9, 18)
+
+        # Check for collision and resolve if necessary for the bedroom
+        if self.check_collision(floor_plan, bedroom_position, bedroom['size']):
+            self.resolve_collisions(floor_plan, bedroom_position, bedroom['size'])
+            bedroom['position'] = bedroom_position
+            return bedroom, washroom, room_cords
+
+        return None, None, room_cords
+
 
 
     # def generate_washroom_attatched(self, floor_plan, bedrooms, room_cords):
@@ -273,9 +320,10 @@ class RoomPlanner(object):
 
         rooms['rooms'].append(kitchen)
 
-        kitchen,room_cords = self.generate_narrow_bedroom_neigbour(floor_plan, rooms, room_cords,1)
+        bedroom1,washroom,room_cords = self.generate_narrow_bedroom_neigbour(floor_plan, rooms, room_cords,1)
 
-        rooms['rooms'].append(kitchen)
+        rooms['rooms'].append(bedroom1)
+        rooms['rooms'].append(washroom)
 
         # bedroom,room_cords = self.generate_narrow_bedroom_neigbour(floor_plan, rooms, room_cords,2)
         # rooms['rooms'].append(bedroom)
