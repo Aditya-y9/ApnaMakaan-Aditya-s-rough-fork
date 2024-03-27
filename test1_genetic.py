@@ -2,8 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from test import population as population_final
+from input_converter import *
 import random
-
+global i1
+i1 = 0
 
 class RoomPlanner(object):
     def __init__(self, PLOT_SIZE=(50, 100), MIN_ROOM_SIZE=(10, 10), NUM_BEDROOMS=2,
@@ -24,11 +26,13 @@ class RoomPlanner(object):
         self.GRID_SIZE = GRID_SIZE
         self.MIN_AREA = MIN_AREA
         self.BEDROOM_SIZE = (10, 10)
-        self.KITCHEN_SIZE = (10,20)
+        self.KITCHEN_SIZE = (10, 20)
         self.APPROXIMATION_FACTOR = 0.5
         self.MAX_XY_RATIO = 1.5
         self.MIN_XY_RATIO = 1
-        self.MIN_LIVING_ROOM_SIZE = (20, 20)
+        self.MIN_LIVING_ROOM_SIZE = (20, 20)  # Ensure the living room size meets the minimum requirements
+
+
 
     def generate_initial_population(self):
     
@@ -39,82 +43,41 @@ class RoomPlanner(object):
             population.append(self.generate_random_rooms())
         return population
     
-    def generate_bedrooms(self, floor_plan,room_cords):
+    def generate_bedrooms(self, floor_plan):
         bedrooms = []
         for i in range(self.NUM_BEDROOMS-2):
             print(f"Generating bedroom {i + 1}...")
             bedroom_name = f"Bedroom {i + 1}"
-            bed,room_cords = self.generate_proper_bedroom(floor_plan, bedroom_name, bedrooms,room_cords)
-            bedrooms.append(bed)
+            bedrooms.append(self.generate_proper_bedroom(floor_plan, bedroom_name, bedrooms))
         return bedrooms
-
-
-    def generate_proper_bedroom(self, floor_plan, bedroom_name, bedrooms, room_cords, connection=None):
-        # Define the connections available
-        connection = ["passage"]
-
-        # Minimum size of the bedroom
-        min_bedroom_size = (self.BEDROOM_SIZE[0], self.BEDROOM_SIZE[1])
-
-        # Bedroom dictionary to store position and size
+    
+    
+    def generate_proper_bedroom(self, floor_plan, bedroom_name, bedrooms):
+        # take into consideration the minimum size of the bedroom
+        # and the approximation factor
         bedroom = {'name': bedroom_name, 'position': (0, 0), 'size': (0, 0)}
-
-        # Generate bedroom size randomly until it meets the minimum size requirement
-        while bedroom['size'][0] < min_bedroom_size[0] or bedroom['size'][1] < min_bedroom_size[1]:
-            bedroom['size'] = (np.random.randint(1, self.PLOT_SIZE[0]), np.random.randint(1, self.PLOT_SIZE[1]))
-
-        # Define corner clearance dictionary to track available corners
-        corner_clear = {'top_left': True, 'top_right': True, 'bottom_left': True, 'bottom_right': True}
-
-        # Choose a random corner to start the bedroom
-        corner = np.random.choice(['top_left', 'top_right', 'bottom_left', 'bottom_right'])
         
-        # Determine the shorter and longer walls
-        shorter_wall = min(self.PLOT_SIZE[0], self.PLOT_SIZE[1])
-        longer_wall = max(self.PLOT_SIZE[0], self.PLOT_SIZE[1])
-
-        # Determine the available walls based on passage connection
-        if connection is not None:
-            available_walls = [wall for wall in ['left', 'right', 'top', 'bottom'] if wall not in connection]
+        while bedroom['size'][0] < self.BEDROOM_SIZE[0] or bedroom['size'][1] < self.BEDROOM_SIZE[1]:
+            bedroom['size'] = (np.random.randint(1, self.PLOT_SIZE[0]), np.random.randint(1, self.PLOT_SIZE[1]))
+        corner_clear = {'top_left': True, 'top_right': True, 'bottom_left': True, 'bottom_right': True}
+        existing_room_cords = {}
+        corner = np.random.choice(['top_left', 'top_right', 'bottom_left', 'bottom_right'])
+        if corner == 'top_left':
+            bedroom['position'] = (0, 0)
+            corner_clear['top_left'] = False
+        elif corner == 'top_right':
+            bedroom['position'] = (self.PLOT_SIZE[0] - bedroom['size'][0], 0)
+            corner_clear['top_right'] = False
+        elif corner == 'bottom_left':
+            bedroom['position'] = (0, self.PLOT_SIZE[1] - bedroom['size'][1])
+            corner_clear['bottom_left'] = False
         else:
-            available_walls = ['left', 'right', 'top', 'bottom']
-
-        # Iterate over available corners and select one
-        for corner in ['top_left', 'top_right', 'bottom_left', 'bottom_right']:
-            if corner_clear[corner]:
-                if corner == 'top_left':
-                    bedroom['position'] = (0, 0)
-                elif corner == 'top_right':
-                    bedroom['position'] = (self.PLOT_SIZE[0] - bedroom['size'][0], 0)
-                elif corner == 'bottom_left':
-                    bedroom['position'] = (0, self.PLOT_SIZE[1] - bedroom['size'][1])
-                else:
-                    bedroom['position'] = (self.PLOT_SIZE[0] - bedroom['size'][0], self.PLOT_SIZE[1] - bedroom['size'][1])
-
-                # Check if the selected position for the bedroom is free
-                if self.check_collision(floor_plan, bedroom['position'], bedroom['size']):
-                    self.resolve_collisions(floor_plan, bedroom['position'], bedroom['size'])
-                    bedrooms.append(bedroom)
-                    return bedrooms
-
-        # If none of the corners are available, select a random wall
-        selected_wall = random.choice(available_walls)
-        if selected_wall == 'left':
-            bedroom['position'] = (0, random.randint(0, self.PLOT_SIZE[1] - bedroom['size'][1]))
-        elif selected_wall == 'right':
-            bedroom['position'] = (self.PLOT_SIZE[0] - bedroom['size'][0], random.randint(0, self.PLOT_SIZE[1] - bedroom['size'][1]))
-        elif selected_wall == 'top':
-            bedroom['position'] = (random.randint(0, self.PLOT_SIZE[0] - bedroom['size'][0]), 0)
-        else:  # selected_wall == 'bottom'
-            bedroom['position'] = (random.randint(0, self.PLOT_SIZE[0] - bedroom['size'][0]), self.PLOT_SIZE[1] - bedroom['size'][1])
-
-        # Check if the selected position for the bedroom is free
+            bedroom['position'] = (self.PLOT_SIZE[0] - bedroom['size'][0], self.PLOT_SIZE[1] - bedroom['size'][1])
+            corner_clear['bottom_right'] = False
         if self.check_collision(floor_plan, bedroom['position'], bedroom['size']):
             self.resolve_collisions(floor_plan, bedroom['position'], bedroom['size'])
-            bedrooms.append(bedroom)
-
-        return bedrooms
-
+            return bedrooms.append(bedroom)
+        return bedrooms.append(bedroom)
     
     
     def generate_narrow_kitchen(self, floor_plan, bedrooms):
@@ -149,7 +112,7 @@ class RoomPlanner(object):
 
 
         # default kitchen size
-        kitchen = {'name': 'Kitchen', 'position': (0, 0), 'size': (5,8)}
+        kitchen = {'name': 'Kitchen', 'position': (0, 0), 'size': (15,24)}
 
         neigbour  =  connection[0]
         room_cords = room_cords[neigbour]
@@ -178,16 +141,15 @@ class RoomPlanner(object):
         return None
     
 
-    import random
-
     def generate_narrow_kitchen_neigbour(self, floor_plan, bedrooms, room_cords):
-        connection = ["passage"]
+        connection = kitchen_connections
 
         # Default kitchen size
-        kitchen = {'name': 'Kitchen', 'position': (0, 0), 'size': (5, 8)}
+        kitchen = {'name': 'Kitchen', 'position': (0, 0), 'size': (10,16)}
 
         neighbor = connection[0]
         neighbor_coords = room_cords[neighbor]
+        print('this room_cords' + str(room_cords))
         neighbor_position = neighbor_coords
         neighbor_size = room_cords[neighbor + '_size']
 
@@ -196,29 +158,13 @@ class RoomPlanner(object):
 
         # Calculate kitchen position based on the shared side
         if shared_side == 'left':
-            max_x = neighbor_position[0]
-            min_x = max(0, max_x - kitchen['size'][0])
-            if min_x > max_x:
-                return None, room_cords
-            kitchen_position = (random.randint(min_x, max_x), neighbor_position[1])
+            kitchen_position = (neighbor_position[0] - kitchen['size'][0], neighbor_position[1])
         elif shared_side == 'right':
-            min_x = neighbor_position[0] + neighbor_size[0]
-            max_x = min(self.PLOT_SIZE[0], min_x + kitchen['size'][0])
-            if min_x > max_x:
-                return None, room_cords
-            kitchen_position = (random.randint(min_x, max_x - kitchen['size'][0]), neighbor_position[1])
+            kitchen_position = (neighbor_position[0] + neighbor_size[0], neighbor_position[1])
         elif shared_side == 'top':
-            min_y = neighbor_position[1] + neighbor_size[1]
-            max_y = min(self.PLOT_SIZE[1], min_y + kitchen['size'][1])
-            if min_y >= max_y:
-                return None, room_cords
-            kitchen_position = (neighbor_position[0], random.randint(min_y, max_y - kitchen['size'][1]))
+            kitchen_position = (neighbor_position[0], neighbor_position[1] + neighbor_size[1])
         elif shared_side == 'bottom':
-            max_y = neighbor_position[1]
-            min_y = max(0, max_y - kitchen['size'][1])
-            if min_y >= max_y:
-                return None, room_cords
-            kitchen_position = (neighbor_position[0], random.randint(min_y, max_y))
+            kitchen_position = (neighbor_position[0], neighbor_position[1] - kitchen['size'][1])
 
         # Ensure the kitchen stays within the plot size
         kitchen_position = (max(0, min(kitchen_position[0], self.PLOT_SIZE[0] - kitchen['size'][0])),
@@ -229,8 +175,78 @@ class RoomPlanner(object):
             kitchen['position'] = kitchen_position
             return kitchen, room_cords
         return None, room_cords
+    
+    def generate_narrow_bedroom_neigbour(self, floor_plan, bedrooms, room_cords,i):
+
+        connection = bedroom1_connections
+
+        # Default kitchen size
+        kitchen = {'name': 'Bedroom' + str(i), 'position': (0, 0), 'size': (20,20)}
+        neighbor = connection[0]
+        if room_cords.get(neighbor) == None:
+            return {'name': 'Bedroom' + str(i), 'position': (0, 0), 'size': (20,20)}, room_cords
+        neighbor_coords = room_cords[neighbor]
+        print('this room_cords' + str(room_cords))
+        neighbor_position = neighbor_coords
+        neighbor_size = room_cords[neighbor + '_size']
+
+        # Determine the side of the neighbor to share the wall with
+        shared_side = random.choice(['left', 'right', 'top', 'bottom'])
+
+        # Calculate kitchen position based on the shared side
+        if shared_side == 'left':
+            kitchen_position = (neighbor_position[0] - kitchen['size'][0], neighbor_position[1])
+        elif shared_side == 'right':
+            kitchen_position = (neighbor_position[0] + neighbor_size[0], neighbor_position[1])
+        elif shared_side == 'top':
+            kitchen_position = (neighbor_position[0], neighbor_position[1] + neighbor_size[1])
+        elif shared_side == 'bottom':
+            kitchen_position = (neighbor_position[0], neighbor_position[1] - kitchen['size'][1])
+
+        # Ensure the kitchen stays within the plot size
+        kitchen_position = (max(0, min(kitchen_position[0], self.PLOT_SIZE[0] - kitchen['size'][0])),
+                            max(0, min(kitchen_position[1], self.PLOT_SIZE[1] - kitchen['size'][1])))
+
+        if self.check_collision(floor_plan, kitchen_position, kitchen['size']):
+            self.resolve_collisions(floor_plan, kitchen_position, kitchen['size'])
+            kitchen['position'] = kitchen_position
+            # i1 = i1 + 1
+            return kitchen, room_cords
+        # i1 = i1 + 1
+        return None, room_cords
 
 
+    # def generate_washroom_attatched(self, floor_plan, bedrooms, room_cords):
+
+        
+
+
+
+    
+    
+    
+    def generate_kitchen(self, floor_plan):
+        kitchen = {'position': (0, 0), 'size': (0, 0)}
+        while kitchen['size'][0] < self.KITCHEN_SIZE[0] or kitchen['size'][1] < self.KITCHEN_SIZE[1]:
+            kitchen['size'] = (np.random.randint(1, self.PLOT_SIZE[0]), np.random.randint(1, self.PLOT_SIZE[1]))
+        corner_clear = {'top_left': True, 'top_right': True, 'bottom_left': True, 'bottom_right': True}
+        corner = np.random.choice(['top_left', 'top_right', 'bottom_left', 'bottom_right'])
+        if corner == 'top_left':
+            kitchen['position'] = (0, 0)
+            corner_clear['top_left'] = False
+        elif corner == 'top_right':
+            kitchen['position'] = (self.PLOT_SIZE[0] - kitchen['size'][0], 0)
+            corner_clear['top_right'] = False
+        elif corner == 'bottom_left':
+            kitchen['position'] = (0, self.PLOT_SIZE[1] - kitchen['size'][1])
+            corner_clear['bottom_left'] = False
+        else:
+            kitchen['position'] = (self.PLOT_SIZE[0] - kitchen['size'][0], self.PLOT_SIZE[1] - kitchen['size'][1])
+            corner_clear['bottom_right'] = False
+        if self.check_collision(floor_plan, kitchen['position'], kitchen['size']):
+            self.resolve_collisions(floor_plan, kitchen['position'], kitchen['size'])
+            return kitchen
+        return None
     
 
     def generate_random_rooms(self):
@@ -246,26 +262,32 @@ class RoomPlanner(object):
         
         room_cords = {}
 
+        living_room_wall_clear = {'left': True, 'right': True, 'top': True, 'bottom': True}
+
         living_room,corner,room_cords = self.generate_living_room(floor_plan,corner_clear,room_cords)
         rooms['rooms'].append(living_room)
 
         # generate passage
-        passage,room_cords = self.generate_passage(floor_plan, living_room,corner,room_cords)
+        passage,room_cords,living_room_wall_clear = self.generate_passage(floor_plan, living_room,corner,room_cords,living_room_wall_clear)
         rooms['rooms'].append(passage)
 
         kitchen,room_cords = self.generate_narrow_kitchen_neigbour(floor_plan, rooms, room_cords)
 
         rooms['rooms'].append(kitchen)
 
-        kitchen,room_cords = self.generate_narrow_kitchen_neigbour(floor_plan, rooms, room_cords)
+        kitchen,room_cords = self.generate_narrow_bedroom_neigbour(floor_plan, rooms, room_cords,1)
+
         rooms['rooms'].append(kitchen)
+
+        # bedroom,room_cords = self.generate_narrow_bedroom_neigbour(floor_plan, rooms, room_cords,2)
+        # rooms['rooms'].append(bedroom)
 
 
 
         rooms['rooms'].append(self.generate_door(floor_plan, living_room,corner,room_cords)[0])
         for i in range(self.MIN_NUM_ROOMS):
             room_name = f"Room_{i + 1}"
-            room,room_cords = self.generate_random_room(floor_plan, room_name,room_cords)
+            room = self.generate_random_room(floor_plan, room_name)
             if room is not None:
                 rooms['rooms'].append(room)
 
@@ -280,8 +302,19 @@ class RoomPlanner(object):
         living_room = {'name': 'Living Room', 'position': (0, 0), 'size': (self.PLOT_SIZE[0], self.PLOT_SIZE[1])}
 
 
-        while living_room['size'][0] < self.MIN_LIVING_ROOM_SIZE[0] or living_room['size'][1] < self.MIN_LIVING_ROOM_SIZE[1] or living_room['size'][0] / living_room['size'][1] < self.MIN_XY_RATIO or living_room['size'][0] / living_room['size'][1] > self.MAX_XY_RATIO:
-            living_room['size'] = (np.random.randint(1, self.PLOT_SIZE[0]), np.random.randint(1, self.PLOT_SIZE[1]))
+        # while living_room['size'][0] < self.MIN_LIVING_ROOM_SIZE[0] or living_room['size'][1] < self.MIN_LIVING_ROOM_SIZE[1] or living_room['size'][0] / living_room['size'][1] < self.MIN_XY_RATIO or living_room['size'][0] / living_room['size'][1] > self.MAX_XY_RATIO:
+        #     living_room['size'] = (np.random.randint(0.1*self.PLOT_SIZE[0], 0.3*self.PLOT_SIZE[0]), np.random.randint(0.1*self.PLOT_SIZE[1], 0.3*self.PLOT_SIZE[1]))
+
+        while True:
+            width = np.random.randint(0.2 * self.PLOT_SIZE[0], 0.35 * self.PLOT_SIZE[0])
+            height = np.random.randint(0.2 * self.PLOT_SIZE[1], 0.35 * self.PLOT_SIZE[1])
+            if (self.MIN_LIVING_ROOM_SIZE[0] <= width <= self.PLOT_SIZE[0] and
+                self.MIN_LIVING_ROOM_SIZE[1] <= height <= self.PLOT_SIZE[1]):
+                break
+            
+        # Set the living room size
+        living_room['size'] = (width, height)
+
 
         # while (living_room['size'][0] <= self.MIN_LIVING_ROOM_SIZE[0] or living_room['size'][1] <= self.MIN_LIVING_ROOM_SIZE[1]) and (living_room['size'][0] / living_room['size'][1] < self.MIN_XY_RATIO or living_room['size'][0] / living_room['size'][1] > self.MAX_XY_RATIO):
         #     living_room['size'] = (np.random.randint(1, self.PLOT_SIZE[0]), np.random.randint(1, self.PLOT_SIZE[1]))
@@ -363,30 +396,43 @@ class RoomPlanner(object):
         return None
     
 
-    def generate_passage(self, floor_plan, room, corner, room_cords):
-        # Extracting hall's position and size
+    def generate_passage(self, floor_plan, room, corner, room_cords, living_room_wall_clear):
+        
+        passage_wall_clear = {'left': True, 'right': True, 'top': True, 'bottom': True}
         hall_position = room_cords['living_room']
         hall_size = room_cords['living_room_size']
 
         # Determine passage width and height based on plot dimensions
         if self.PLOT_SIZE[0] > self.PLOT_SIZE[1]:
             passage_width = self.PLOT_SIZE[0] // 3
-            passage_height = self.PLOT_SIZE[1] // 10
+            passage_height = self.PLOT_SIZE[1] // 4
         else:
-            passage_width = self.PLOT_SIZE[0] // 10
+            passage_width = self.PLOT_SIZE[0] // 4
             passage_height = self.PLOT_SIZE[1] // 3
+
+        # Determine opposite connecting walls
+        opposite_walls = {'left': 'right', 'right': 'left', 'top': 'bottom', 'bottom': 'top'}
 
         # Randomly select a wall of the hall to connect the passage to
         connecting_wall = random.choice(['left', 'right', 'top', 'bottom'])
 
         # Calculate the position of the passage based on the connecting wall
+        if connecting_wall in ['left', 'right']:
+            opposite_wall = opposite_walls[connecting_wall]
+            if not living_room_wall_clear[opposite_wall]:
+                connecting_wall = opposite_wall
+
         if connecting_wall == 'left':
+            living_room_wall_clear['left'] = False 
             passage_position = (hall_position[0] - passage_width, hall_position[1])
         elif connecting_wall == 'right':
+            living_room_wall_clear['right'] = False
             passage_position = (hall_position[0] + hall_size[0], hall_position[1])
         elif connecting_wall == 'top':
+            living_room_wall_clear['top'] = False
             passage_position = (hall_position[0], hall_position[1] + hall_size[1])
         elif connecting_wall == 'bottom':
+            living_room_wall_clear['bottom'] = False
             passage_position = (hall_position[0], hall_position[1] - passage_height)
 
         # Ensure the passage stays within the plot boundaries
@@ -402,9 +448,10 @@ class RoomPlanner(object):
             room_cords['passage'] = passage_position
             room_cords['passage_size'] = (passage_width, passage_height)
             # Return passage details along with updated room_cords
-            return {'name': 'Passage', 'position': passage_position, 'size': (passage_width, passage_height)}, room_cords
+            return {'name': 'Passage', 'position': passage_position, 'size': (passage_width, passage_height)}, room_cords, living_room_wall_clear
 
         return None
+
 
     
 
@@ -421,15 +468,15 @@ class RoomPlanner(object):
         # passage = {'name': 'Passage', 'position': (self.PLOT_SIZE[0] // 2 + random.randint(-0.1,0.1)*self.PLOT_SIZE[0], self.PLOT_SIZE[1] // 2 + random.randint(-0.1,0.1)*self.PLOT_SIZE[1]), 'size': (passage_width, passage_height)}
 
 
-    def generate_random_room(self, floor_plan, room_name,room_cords):
+    def generate_random_room(self, floor_plan, room_name):
         # generate bedrroms and kitchen
-        bedrooms,room_cords = self.generate_bedrooms(floor_plan,room_cords)
+        bedrooms = self.generate_bedrooms(floor_plan)
         rooms = bedrooms
         for room in rooms:
             if self.check_collision(floor_plan, room['position'], room['size']):
                 self.resolve_collisions(floor_plan, room['position'], room['size'])
-                return room,room_cords
-        return None,room_cords
+                return room
+        return None
     
     def generate_door(self, floor_plan, room,corner,room_cords):
         # a quarter circle at one of the corners
@@ -586,6 +633,8 @@ class RoomPlanner(object):
         ax.set_ylim(0, self.PLOT_SIZE[1])
         ax.set_aspect('equal', adjustable='box')
         plt.show()
+        # plt.pause(0.5)
+        # plt.close(fig)
 
 
     def plot_room_boundaries(self, rooms):
@@ -599,189 +648,131 @@ class RoomPlanner(object):
         ax.set_xlim(0, self.PLOT_SIZE[0])
         ax.set_ylim(0, self.PLOT_SIZE[1])
         plt.show()
-
-    
-    def genetic_plot_rooms(self, rooms):
-        fig, ax = plt.subplots()
-        border = Rectangle((0, 0), self.PLOT_SIZE[0], self.PLOT_SIZE[1], fill=False, color='brown')
-        ax.add_patch(border)
-        # rooms = [{'rooms':[{'name':'Living Room','position':(0,0),'size':(40,40)},{'name':'door','position':(0,0),'size':(5,5)}],'fitness':1600}]
-        rooms1 = rooms['rooms']
-        for room in rooms1:
-                if(room==None):
-                    continue
-                position = room['position']
-                size = room['size']
-                color = 'black' if room.get('external', False) else 'brown'
-                if room['name'] == 'Door':
-                    rect = plt.Circle((position[0], position[1]), 5, color='blue', fill=True)
-                else:
-                    rect = Rectangle((position[0], position[1]), size[0], size[1], linewidth=5, edgecolor=color, facecolor='none')
-                ax.add_patch(rect)
-
-                room_name = room['name']
-                room_center = (position[0] + size[0] / 2, position[1] + size[1] / 2)
-                ax.text(room_center[0], room_center[1], room_name, fontsize=12, ha='center', va='center')
-
-        ax.set_xlim(0, self.PLOT_SIZE[0])
-        ax.set_ylim(0, self.PLOT_SIZE[1])
-        ax.set_aspect('equal', adjustable='box')
-        plt.show()
-
-        # for room in rooms:
-        #     # print("meri room")
-        #     # print(room)
-        #     # if(room['name'] == 'Door'):
-        #     #     # plot circles for doors
-        #     #     print("done")
-        #     #     position = room['position']
-        #     #     size = room['size']
-        #     #     ax.add_patch(plt.Circle((position[0], position[1]), 5, color='blue'))
-        #     #     continue
-        #     rooms1 = room['rooms']
-        #     for room in rooms1:
-        #         if(room==None):
-        #             continue
-        #         position = room['position']
-        #         size = room['size']
-        #         color = 'black' if room.get('external', False) else 'brown'
-        #         if room['name'] == 'Door':
-        #             rect = plt.Circle((position[0], position[1]), 5, color='blue', fill=True)
-        #         else:
-        #             rect = Rectangle((position[0], position[1]), size[0], size[1], linewidth=5, edgecolor=color, facecolor='none')
-        #         ax.add_patch(rect)
-
-        #         room_name = room['name']
-        #         room_center = (position[0] + size[0] / 2, position[1] + size[1] / 2)
-        #         ax.text(room_center[0], room_center[1], room_name, fontsize=12, ha='center', va='center')
-
-        #     ax.set_xlim(0, self.PLOT_SIZE[0])
-        #     ax.set_ylim(0, self.PLOT_SIZE[1])
-        #     ax.set_aspect('equal', adjustable='box')
-        #     plt.show()
-
-
-    def plot_room_boundaries(self, rooms):
-        fig, ax = plt.subplots()
-        border = Rectangle((0, 0), self.PLOT_SIZE[0], self.PLOT_SIZE[1], fill=False, color='brown')
-        ax.add_patch(border)
-        for room in rooms:
-            position = room['position']
-            size = room['size']
-            ax.add_patch(Rectangle(position, size[0], size[1], fill=False, color='brown'))
-        ax.set_xlim(0, self.PLOT_SIZE[0])
-        ax.set_ylim(0, self.PLOT_SIZE[1])
-        plt.show()
-
 
     def find_colliding_rooms(self, room, floor_plan):
         colliding_rooms = []
         for other_room in floor_plan:
+            # print()
+            # print(other_room)
+            # print()
             if room != other_room:
-                if (room['position'][0] < other_room['position'][0] + other_room['size'][0] and
-                    room['position'][0] + room['size'][0] > other_room['position'][0] and
-                    room['position'][1] < other_room['position'][1] + other_room['size'][1] and
-                    room['position'][1] + room['size'][1] > other_room['position'][1]):
+                if ((room['position'][0] < other_room['position'][0] + other_room['size'][0] and
+                    room['position'][0] + room['size'][0] > other_room['position'][0]) or
+                    (room['position'][1] < other_room['position'][1] + other_room['size'][1] and
+                    room['position'][1] + room['size'][1] > other_room['position'][1])):
                     colliding_rooms.append(other_room)
         return colliding_rooms
+
     
-    def resolve_collision(self, room1, room2, expand_walls=True):
-        x1, y1, w1, h1 = room1['position'][0], room1['position'][1], room1['size'][0], room1['size'][1]
-        x2, y2, w2, h2 = room2['position'][0], room2['position'][1], room2['size'][0], room2['size'][1]
-        x_overlap = max(0, min(x1 + w1, x2 + w2) - max(x1, x2))
-        y_overlap = max(0, min(y1 + h1, y2 + h2) - max(y1, y2))
-        if x_overlap < y_overlap:
-            room1['size'] = (w1 - x_overlap, h1)
-        else:
-            room1['size'] = (w1, h1 - y_overlap)
-        if expand_walls:
-            room1['size'] = self.increase_room_size(room1, self.PLOT_SIZE[0], self.PLOT_SIZE[1])['size']
-        return room1
-    
-    def increase_room_size(self, room, max_width, max_height):
-        position = room['position']
-        size = room['size']
-        available_width = max_width - position[0] - size[0]
-        available_height = max_height - position[1] - size[1]
-        if available_width > 0 and available_height > 0:
-            size = (min(size[0] + available_width, max_width), min(size[1] + available_height, max_height))
-        return {'position': position, 'size': size}
-    
+    import numpy as np
+
+# class YourFloorPlanGenerator:
     def genetic_algorithm(self):
-
         print("Generating initial population...")
-
         population = self.generate_initial_population()
-
-        # -----------------  Genetic Algorithm -----------------
-
         best_floor_plan = None
-
-
-        fig, ax = plt.subplots()
-        ax.set_xlim(0, self.PLOT_SIZE[0])
-        ax.set_ylim(0, self.PLOT_SIZE[1])
-
 
         for generation in range(self.NUM_GENERATIONS):
             print(f"Generation {generation + 1}/{self.NUM_GENERATIONS}")
-
-
             for floor_plan in population:
-
-                # plan to add fitness to the floor plan
-                if best_floor_plan is None or floor_plan['fitness'] > best_floor_plan['fitness']:
+                if best_floor_plan is None or self.calculate_area_fitness(floor_plan['rooms']) > self.calculate_area_fitness(best_floor_plan['rooms']):
                     best_floor_plan = floor_plan
-                else:
-                    
-                    
-                 best_floor_plan = best_floor_plan
-
-                if best_floor_plan['fitness'] == np.prod(self.PLOT_SIZE):
+                if self.calculate_area_fitness(best_floor_plan['rooms']) == np.prod(self.PLOT_SIZE):
                     return best_floor_plan
-                
-                # if generation % 10 == 0:
-                #     self.update_plot(best_floor_plan, ax)
-                #     plt.pause(0.1)
-                #     plt.draw()
 
-                # if generation % 100 == 0:
-                #     print(f"Generation {generation + 1}/{self.NUM_GENERATIONS}, Fitness: {best_floor_plan['fitness']}")
-
-            self.update_plot(best_floor_plan, ax)
-            plt.pause(0.1)
-            plt.draw()
             parents = self.select_parents(population)
             offspring = []
+
             for i in range(0, len(parents), 2):
-                if(i+1 >= len(parents)):
+                if i + 1 >= len(parents):
                     break
                 offspring1, offspring2 = self.crossover(parents[i], parents[i + 1])
                 offspring.append(self.mutate(offspring1))
                 offspring.append(self.mutate(offspring2))
 
-            # now population is the parents and the offspring
             population = parents + offspring
 
-
-            # back to loop
-            # population will keep on increasing
-
-
         return best_floor_plan
-    
+
+    def calculate_area_fitness(self, floor_plan):
+        total_area = 0
+        for room in floor_plan:
+            area = room['size'][0] * room['size'][1]
+            total_area += area
+            if (room['position'][0] + room['size'][0] > self.PLOT_SIZE[0]) or (room['position'][1] + room['size'][1] > self.PLOT_SIZE[1]):
+                total_area -= 100 * area
+            colliding_rooms = self.find_colliding_rooms(room, floor_plan)
+            if colliding_rooms:
+                total_area -= 100 * sum(self.overlap_area(room, colliding_room) for colliding_room in colliding_rooms)
+        return total_area
+
+    def crossover(self, parent1, parent2):
+        offspring1 = {'rooms': [], 'fitness': 0}
+        offspring2 = {'rooms': [], 'fitness': 0}
+
+        for room in parent1['rooms']:
+            if np.random.rand() < 0.5:
+                block = 0
+                for room_child in offspring1['rooms']:
+                    if room_child['name'] == room['name']:
+                        block = 1
+                if block == 0:
+                    offspring1['rooms'].append(room)
+            else:
+                block = 0
+                for room_child in offspring2['rooms']:
+                    if room_child['name'] == room['name']:
+                        block = 1
+                if block == 0:
+                    offspring2['rooms'].append(room)
+        for room in parent2['rooms']:
+            if np.random.rand() > 0.5:
+                block = 0
+                for room_child in offspring1['rooms']:
+                    if room_child['name'] == room['name']:
+                        block = 1
+                if block == 0:
+                    offspring1['rooms'].append(room)
+            else:
+                block = 0
+                for room_child in offspring2['rooms']:
+                    if room_child['name'] == room['name']:
+                        block = 1
+                if block == 0:
+                    offspring2['rooms'].append(room)
+
+        offspring1['fitness'] = self.calculate_area_fitness(offspring1['rooms'])
+        offspring2['fitness'] = self.calculate_area_fitness(offspring2['rooms'])
+        return offspring1, offspring2
+
+    def mutate(self, floor_plan):
+        mutated_plan = floor_plan.copy()
+        tot_area = self.PLOT_SIZE[0] * self.PLOT_SIZE[1]
+        for room in mutated_plan['rooms']:
+            if room['name'] != 'door':
+                x_room = min(self.PLOT_SIZE[0], room['position'][0] + room['size'][0]) - room['position'][0]
+                y_room = min(self.PLOT_SIZE[1], room['position'][1] + room['size'][1]) - room['position'][1]
+                available_area = tot_area - x_room * y_room
+                if np.random.rand() < self.MUTATION_RATE:
+                    x_factor = min(room['size'][0] + self.SIZE_INCREASE_FACTOR, 0.7 * self.PLOT_SIZE[0])
+                    y_factor = min(room['size'][1] + self.SIZE_INCREASE_FACTOR, 0.7 * self.PLOT_SIZE[1])
+                    store_size = room['size']
+                    if room['position'][0] + x_factor <= self.PLOT_SIZE[0] and room['position'][1] + y_factor <= self.PLOT_SIZE[1]:
+                        room['size'] = (x_factor, y_factor)
+                    col = self.find_colliding_rooms(room, mutated_plan['rooms'])
+                    if col:
+                        room['size'] = store_size
+
+        mutated_plan['fitness'] = self.calculate_area_fitness(mutated_plan['rooms'])
+        return mutated_plan
+
     def select_parents(self, population):
-
-        fitnesses = [floor_plan['fitness'] for floor_plan in population]
-        # sort the population based on fitness
-        population = [x for _, x in sorted(zip(fitnesses, population), key=lambda pair: pair[0], reverse=True)]
-
-        # choose only the top 10% or 2 parents whichever is greater
+        population.sort(key=lambda x: x['fitness'], reverse=True)
         num_parents = max(int(0.1 * self.POPULATION_SIZE), 2)
         parents = population[:num_parents]
         return parents
-    
-    def update_plot(self, best_floor_plan, ax):
+
+    def update_plot(self, best_floor_plan, generation, ax):
         ax.clear()
         ax.set_xlim(0, self.PLOT_SIZE[0])
         ax.set_ylim(0, self.PLOT_SIZE[1])
@@ -790,21 +781,36 @@ class RoomPlanner(object):
             size = room['size']
             edge_color = 'BLACK' if room.get('external', False) else 'BROWN'
             rect = Rectangle((position[0], position[1]), size[0], size[1], linewidth=5, edgecolor=edge_color, facecolor='none')
-            # ax.add_patch(rect)
-        # plt.title(f'Generation {generation}, Fitness: {best_floor_plan["fitness"]}')
+            ax.add_patch(rect)
+        plt.title(f'Generation {generation}, Fitness: {best_floor_plan["fitness"]}')
         plt.draw()
         return ax
-    
-   
+
     def remove_narrow_rooms(self, rooms):
         for room in rooms:
             if room['size'][0] < self.MIN_ROOM_SIZE[0] or room['size'][1] < self.MIN_ROOM_SIZE[1]:
                 rooms.remove(room)
         return rooms
     
-    def main(self):
-        best_floor_plan = self.genetic_algorithm()
-        return best_floor_plan['rooms']
+    def find_colliding_rooms(self, room, floor_plan):
+        colliding_rooms = []
+        for other_room in floor_plan:
+            # print()
+            # print(other_room)
+            # print()
+            if room != other_room:
+                if ((room['position'][0] < other_room['position'][0] + other_room['size'][0] and
+                    room['position'][0] + room['size'][0] > other_room['position'][0]) or
+                    (room['position'][1] < other_room['position'][1] + other_room['size'][1] and
+                    room['position'][1] + room['size'][1] > other_room['position'][1])):
+                    colliding_rooms.append(other_room)
+        return colliding_rooms
+
+    def overlap_area(self, room1, room2):
+        x_overlap = max(0, min(room1['position'][0] + room1['size'][0], room2['position'][0] + room2['size'][0]) - max(room1['position'][0], room2['position'][0]))
+        y_overlap = max(0, min(room1['position'][1] + room1['size'][1], room2['position'][1] + room2['size'][1]) - max(room1['position'][1], room2['position'][1]))
+        return x_overlap * y_overlap
+
     
     def draw_rooms_pygame(self, rooms, screen):
         for room in rooms:
@@ -861,22 +867,52 @@ class RoomPlanner(object):
             pygame.draw.line(screen, color, (position[0] + size[0], position[1]), (position[0] + size[0], position[1] + size[1]), 5)
             pygame.draw.line(screen, color, (position[0], position[1] + size[1]), (position[0] + size[0], position[1] + size[1]), 5)
 
+    def genetic_plot_rooms(self, floor_plan):
+        fig, ax = plt.subplots()
+        border = Rectangle((0, 0), self.PLOT_SIZE[0], self.PLOT_SIZE[1], fill=False, color='brown')
+        ax.add_patch(border)
+        
+        rooms = floor_plan['rooms']
+        for room in rooms:
+            if room is None:
+                continue
+            position = room['position']
+            size = room['size']
+            color = 'black' if room.get('external', False) else 'brown'
+            if room['name'] == 'door':
+                # rect = Circle((position[0], position[1]), 5, color='blue', fill=True)
+                pass
+            else:
+                rect = Rectangle((position[0], position[1]), size[0], size[1], linewidth=5, edgecolor=color, facecolor='none')
+            ax.add_patch(rect)
+
+            room_name = room['name']
+            room_center = (position[0] + size[0] / 2, position[1] + size[1] / 2)
+            ax.text(room_center[0], room_center[1], room_name, fontsize=12, ha='center', va='center')
+
+        ax.set_xlim(0, self.PLOT_SIZE[0])
+        ax.set_ylim(0, self.PLOT_SIZE[1])
+        ax.set_aspect('equal', adjustable='box')
+        plt.show()
+
 if __name__ == '__main__':
+    import time
     while True:
         planner = RoomPlanner()
-        population = planner.generate_initial_population()
-        print(population)
-        print("Initial population generated")
-        print("Plotting rooms...")
-        print(population)
+        # population = planner.generate_initial_population()
+        # print(population)
+        # print("Initial population generated")
+        # print("Plotting rooms...")
+        # print(population)
 
-        planner.plot_rooms(population[0]['rooms'])
+        # planner.plot_rooms(population[0]['rooms'])
 
 
-        # population = planner.genetic_algorithm()
+        population = planner.genetic_algorithm()
         # print("This is " + str(population))
+        print("Plotting rooms..." + str(population))
 
-        # planner.genetic_plot_rooms(population)
+        planner.genetic_plot_rooms(population)
 
     # offspring1, offspring2 = planner.crossover(population[0], population[1])
     # planner.plot_rooms(offspring1['rooms'])
