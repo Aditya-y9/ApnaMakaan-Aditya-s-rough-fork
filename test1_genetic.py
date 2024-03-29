@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-from test import population as population_final
+# from test import population as population_final
 from input_converter import *
 import random
 global i1
