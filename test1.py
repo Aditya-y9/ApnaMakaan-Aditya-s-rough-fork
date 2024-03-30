@@ -6,6 +6,7 @@ from input_converter import *
 import random
 global i1
 i1 = 0
+
 class RoomPlanner(object):
     def __init__(self, PLOT_SIZE=(80, 120), MIN_ROOM_SIZE=(10, 10), NUM_BEDROOMS=2,
                  POPULATION_SIZE=50, NUM_GENERATIONS=500, MUTATION_RATE=2,
@@ -128,6 +129,8 @@ class RoomPlanner(object):
             if 'bottom' not in room_cords:
                 free_wall = 'bottom'
 
+        washroom_position = (0, 0)
+
         # If a free wall is found, place the washroom outside that wall
         if free_wall:
             if free_wall == 'left':
@@ -139,9 +142,6 @@ class RoomPlanner(object):
             elif free_wall == 'bottom':
                 washroom_position = (bedroom_position[0], bedroom_position[1] - 18)
 
-            # Ensure the washroom stays within the plot size
-            washroom_position = (max(0, min(washroom_position[0], self.PLOT_SIZE[0] - 9)),
-                                max(0, min(washroom_position[1], self.PLOT_SIZE[1] - 18)))
             
 
 
@@ -151,6 +151,10 @@ class RoomPlanner(object):
                 # Add washroom details to the room_cords
                 room_cords[free_wall] = washroom_position
                 room_cords[free_wall + '_size'] = (9, 18)
+        
+            # Ensure the washroom stays within the plot size
+        washroom_position = (max(0, min(washroom_position[0], self.PLOT_SIZE[0] - 9)),
+                                max(0, min(washroom_position[1], self.PLOT_SIZE[1] - 18)))
         
         washroom = {'name': 'Washroom', 'position': washroom_position, 'size': (9, 18)}
         if free_wall:
@@ -878,20 +882,20 @@ if __name__ == '__main__':
     import time
     while True:
         planner = RoomPlanner()
-        # population = planner.generate_initial_population()
-        # print(population)
-        # print("Initial population generated")
-        # print("Plotting rooms...")
-        # print(population)
+        population = planner.generate_initial_population()
+        print(population)
+        print("Initial population generated")
+        print("Plotting rooms...")
+        print(population)
 
         # planner.plot_rooms(population[0]['rooms'])
 
 
-        population = planner.genetic_algorithm()
-        # print("This is " + str(population))
-        print("Plotting rooms..." + str(population))
+        # population = planner.genetic_algorithm()
+        # # print("This is " + str(population))
+        # print("Plotting rooms..." + str(population))
 
-        planner.genetic_plot_rooms(population)
+        # planner.genetic_plot_rooms(population)
 
     # offspring1, offspring2 = planner.crossover(population[0], population[1])
     # planner.plot_rooms(offspring1['rooms'])
