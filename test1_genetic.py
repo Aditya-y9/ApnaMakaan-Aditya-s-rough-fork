@@ -899,20 +899,20 @@ if __name__ == '__main__':
     import time
     while True:
         planner = RoomPlanner()
-        # population = planner.generate_initial_population()
-        # print(population)
-        # print("Initial population generated")
-        # print("Plotting rooms...")
-        # print(population)
+        population = planner.generate_initial_population()
+        print(population)
+        print("Initial population generated")
+        print("Plotting rooms...")
+        print(population)
 
-        # planner.plot_rooms(population[0]['rooms'])
+        planner.plot_rooms(population[0]['rooms'])
 
 
-        population = planner.genetic_algorithm()
-        # print("This is " + str(population))
-        print("Plotting rooms..." + str(population))
+        # population = planner.genetic_algorithm()
+        # # print("This is " + str(population))
+        # print("Plotting rooms..." + str(population))
 
-        planner.genetic_plot_rooms(population)
+        # planner.genetic_plot_rooms(population)
 
     # offspring1, offspring2 = planner.crossover(population[0], population[1])
     # planner.plot_rooms(offspring1['rooms'])
