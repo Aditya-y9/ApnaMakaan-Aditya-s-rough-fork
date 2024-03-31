@@ -42,7 +42,7 @@ class RoomPlanner(object):
             population.append(self.generate_random_rooms())
         return population
 
-    def generate_narrow_kitchen_neighbour(self, floor_plan, bedrooms, room_cords):
+    def generate_narrow_kitchen_neighbour(self, floor_plan, bedrooms, room_cords,shared_sides_passage,shared_sides_kitchen,shared_sides_living_room):
         connection = kitchen_connections
 
         # Default kitchen size
@@ -87,10 +87,10 @@ class RoomPlanner(object):
         if self.check_collision(kitchen_position, kitchen['size'],room_cords):
             self.resolve_collisions(floor_plan, kitchen_position, kitchen['size'],room_cords)
             kitchen['position'] = kitchen_position
-            return kitchen, room_cords, shared_sides_passage
+            return kitchen, room_cords, shared_sides_passage, shared_sides_kitchen, shared_sides_living_room
         else:
             kitchen['position'] = kitchen_position
-        return kitchen, room_cords , shared_sides_passage
+        return kitchen, room_cords , shared_sides_passage, shared_sides_kitchen, shared_sides_living_room
     
     def check_side(self, side, neighbor_position, neighbor_size, kitchen_size):
         if side == 'left':
@@ -103,7 +103,7 @@ class RoomPlanner(object):
             return neighbor_position[1] - kitchen_size[1] >= 0
         return False
 
-    def generate_bedroom_neighbour(self, floor_plan, bedrooms, room_cords, i):
+    def generate_bedroom_neighbour(self, floor_plan, bedrooms, room_cords, i, shared_sides_passage, shared_sides_kitchen, shared_sides_living_room):
         bedroom1_connections = ["passage"]
 
         # Default bedroom size
@@ -126,8 +126,16 @@ class RoomPlanner(object):
         neighbor_position = neighbor_coords
         neighbor_size = room_cords[neighbor + '_size']
 
-        # Determine the side of the neighbor to share the wall with
-        shared_side = random.choice(['left', 'right', 'top', 'bottom'])
+        # verify the positioning does not overlap with passage, kitchen or living room
+        shared_sides_passage = [side for side in shared_sides_passage if self.check_side(side, neighbor_position, neighbor_size, bedroom['size'])]
+        shared_sides_kitchen = [side for side in shared_sides_kitchen if self.check_side(side, neighbor_position, neighbor_size, bedroom['size'])]
+        shared_sides_living_room = [side for side in shared_sides_living_room if self.check_side(side, neighbor_position, neighbor_size, bedroom['size'])]
+
+        shared_sides = list(set(shared_sides_passage) & set(shared_sides_kitchen) & set(shared_sides_living_room))
+
+        if not shared_sides:
+            return bedroom, {'name': 'Washroom', 'position': (0, 0), 'size': (0, 0)}, room_cords, shared_sides_passage        
+        shared_side = random.choice(shared_sides)
 
         # Calculate bedroom position based on the shared side
         if shared_side == 'left':
@@ -210,10 +218,10 @@ class RoomPlanner(object):
         if self.check_collision(bedroom_position, bedroom['size'],room_cords):
             self.resolve_collisions(floor_plan, bedroom_position, bedroom['size'],room_cords)
             bedroom['position'] = bedroom_position
-            return bedroom, washroom, room_cords
+            return bedroom, washroom, room_cords, shared_sides_passage
         else:
             bedroom['position'] = bedroom_position
-        return bedroom, washroom, room_cords
+        return bedroom, washroom, room_cords, shared_sides_passage
     
 
 
@@ -280,18 +288,18 @@ class RoomPlanner(object):
         passage,room_cords,living_room_wall_clear,shared_sides_living_room = self.generate_passage(floor_plan, living_room,corner,room_cords,living_room_wall_clear,shared_sides_living_room)
         rooms['rooms'].append(passage)
 
-        kitchen,room_cords,shared_sides_passage = self.generate_narrow_kitchen_neighbour(floor_plan, rooms, room_cords)
+        kitchen,room_cords,shared_sides_passage,shared_sides_kitchen,shared_sides_living_room = self.generate_narrow_kitchen_neighbour(floor_plan, rooms, room_cords,shared_sides_passage,shared_sides_kitchen,shared_sides_living_room)
 
         print('this shared sides passage' + str(shared_sides_passage))
 
         rooms['rooms'].append(kitchen)
 
-        bedroom1,washroom,room_cords = self.generate_bedroom_neighbour(floor_plan, rooms, room_cords,1)
+        bedroom1,washroom,room_cords,shared_sides_passage = self.generate_bedroom_neighbour(floor_plan, rooms, room_cords,1,shared_sides_passage,shared_sides_kitchen,shared_sides_living_room)
 
         rooms['rooms'].append(bedroom1)
         rooms['rooms'].append(washroom)
 
-        bedroom2,washroom2,room_cords = self.generate_bedroom_neighbour(floor_plan, rooms, room_cords,2)
+        bedroom2,washroom2,room_cords,shared_sides_passage = self.generate_bedroom_neighbour(floor_plan, rooms, room_cords,2,shared_sides_passage,shared_sides_kitchen,shared_sides_living_room)
         rooms['rooms'].append(bedroom2)
         rooms['rooms'].append(washroom2)
 
