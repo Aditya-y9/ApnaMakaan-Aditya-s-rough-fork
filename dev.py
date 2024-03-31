@@ -34,12 +34,13 @@ class RoomPlanner(object):
         self.BEDROOM_FACTOR = 0.35
         self.KITCHEN_FACTOR = 0.10
         self.LIVING_ROOM_FACTOR = 0.4
+        self.MIN_LIVING_ROOM_SIZE = (45,45)
 
 
     def generate_initial_population(self):
         population = [] # 1st to last 
-        for _ in range(self.POPULATION_SIZE):
-            population.append(self.generate_random_rooms())
+        # for _ in range(self.POPULATION_SIZE):
+        population.append(self.generate_random_rooms())
         return population
 
     def generate_narrow_kitchen_neighbour(self, floor_plan, bedrooms, room_cords,shared_sides_passage,shared_sides_kitchen,shared_sides_living_room):
@@ -60,9 +61,6 @@ class RoomPlanner(object):
         print('this room_cords' + str(room_cords))
         neighbor_position = neighbor_coords
         neighbor_size = room_cords[neighbor + '_size']
-
-        # Determine the side of the neighbor to share the wall with
-        shared_sides_passage = ['left', 'right', 'top', 'bottom']
 
         # cancel out sides which are not possible to fit the kitchen
 
@@ -294,14 +292,14 @@ class RoomPlanner(object):
 
         rooms['rooms'].append(kitchen)
 
-        bedroom1,washroom,room_cords,shared_sides_passage = self.generate_bedroom_neighbour(floor_plan, rooms, room_cords,1,shared_sides_passage,shared_sides_kitchen,shared_sides_living_room)
+        # bedroom1,washroom,room_cords,shared_sides_passage = self.generate_bedroom_neighbour(floor_plan, rooms, room_cords,1,shared_sides_passage,shared_sides_kitchen,shared_sides_living_room)
 
-        rooms['rooms'].append(bedroom1)
-        rooms['rooms'].append(washroom)
+        # rooms['rooms'].append(bedroom1)
+        # rooms['rooms'].append(washroom)
 
-        bedroom2,washroom2,room_cords,shared_sides_passage = self.generate_bedroom_neighbour(floor_plan, rooms, room_cords,2,shared_sides_passage,shared_sides_kitchen,shared_sides_living_room)
-        rooms['rooms'].append(bedroom2)
-        rooms['rooms'].append(washroom2)
+        # bedroom2,washroom2,room_cords,shared_sides_passage = self.generate_bedroom_neighbour(floor_plan, rooms, room_cords,2,shared_sides_passage,shared_sides_kitchen,shared_sides_living_room)
+        # rooms['rooms'].append(bedroom2)
+        # rooms['rooms'].append(washroom2)
 
 
 
@@ -320,11 +318,12 @@ class RoomPlanner(object):
 
     def generate_living_room(self, floor_plan,corner_clear,room_cords,shared_sides_living_room):
 
-        living_room = {'name': 'Living Room', 'position': (0, 0), 'size': (self.PLOT_SIZE[0], self.PLOT_SIZE[1])}
+        living_room = {'name': 'Living Room', 'position': (0, 0), 'size': (0, 1)}
+
+        living_room['size'] = (self.PLOT_SIZE[0], np.random.randint(self.MIN_LIVING_ROOM_SIZE[1], 0.6 * self.PLOT_SIZE[1]))
 
 
-        while living_room['size'][0] < self.MIN_LIVING_ROOM_SIZE[0] or living_room['size'][1] < self.MIN_LIVING_ROOM_SIZE[1] or living_room['size'][0] / living_room['size'][1] < self.MIN_XY_RATIO or living_room['size'][0] / living_room['size'][1] > self.MAX_XY_RATIO:
-            living_room['size'] = (np.random.randint(1, self.PLOT_SIZE[0]), np.random.randint(1, self.PLOT_SIZE[1]))
+        
 
         # while (living_room['size'][0] <= self.MIN_LIVING_ROOM_SIZE[0] or living_room['size'][1] <= self.MIN_LIVING_ROOM_SIZE[1]) and (living_room['size'][0] / living_room['size'][1] < self.MIN_XY_RATIO or living_room['size'][0] / living_room['size'][1] > self.MAX_XY_RATIO):
         #     living_room['size'] = (np.random.randint(1, self.PLOT_SIZE[0]), np.random.randint(1, self.PLOT_SIZE[1]))
@@ -420,17 +419,28 @@ class RoomPlanner(object):
 
         # Determine passage width and height based on plot dimensions
         if self.PLOT_SIZE[0] > self.PLOT_SIZE[1]:
-            passage_width = int(0.6 * self.PLOT_SIZE[0])
-            passage_height = self.PLOT_SIZE[1] // 4
+            passage_width = int(0.4 * self.PLOT_SIZE[0])
+            passage_height = self.PLOT_SIZE[1] // 6
         else:
-            passage_width = self.PLOT_SIZE[0] // 4
-            passage_height = int(0.6 * self.PLOT_SIZE[1])
+            passage_width = self.PLOT_SIZE[0] // 6
+            passage_height = int(0.4 * self.PLOT_SIZE[1])
 
         # Determine opposite connecting walls
         opposite_walls = {'left': 'right', 'right': 'left', 'top': 'bottom', 'bottom': 'top'}
 
-        # Randomly select a connecting wall
-        connecting_wall = random.choice(shared_sides_living_room)
+        # Determine the connecting wall based on the corner 
+        if corner == 'top_left':
+            connecting_wall = 'top'
+        elif corner == 'top_right':
+            connecting_wall = 'top'
+        elif corner == 'bottom_left':
+            connecting_wall = 'bottom'
+        else:
+            connecting_wall = 'bottom'
+
+        print('this corner' + str(corner))
+
+        print('this connecting wall' + str(connecting_wall))
 
         # Calculate the position of the passage based on the connecting wall
         if connecting_wall in ['left', 'right']:
