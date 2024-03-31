@@ -177,7 +177,10 @@ class RoomPlanner(object):
             self.resolve_collisions(floor_plan, kitchen_position, kitchen['size'],room_cords)
             kitchen['position'] = kitchen_position
             return kitchen, room_cords
-        return None, room_cords
+        else:
+            kitchen['position'] = kitchen_position
+        return kitchen, room_cords
+    
     
 
 
@@ -290,8 +293,10 @@ class RoomPlanner(object):
             self.resolve_collisions(floor_plan, bedroom_position, bedroom['size'],room_cords)
             bedroom['position'] = bedroom_position
             return bedroom, washroom, room_cords
-
-        return None, None, room_cords
+        else:
+            bedroom['position'] = bedroom_position
+        return bedroom, washroom, room_cords
+    
 
 
 
