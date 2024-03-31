@@ -455,11 +455,20 @@ class RoomPlanner(object):
             passage_position = (hall_position[0] + hall_size[0], hall_position[1])
         elif connecting_wall == 'top':
             living_room_wall_clear['top'] = False
-            passage_position = (hall_position[0], hall_position[1] + hall_size[1])
+            if random.random() < 0.5:
+                passage_position = (hall_position[0], hall_position[1] + hall_size[1])
+            else:
+                passage_position = (hall_position[0] + hall_size[0] - passage_width, hall_position[1] + hall_size[1])
+            
+            passage_position = (random.randint(0, self.PLOT_SIZE[0] - passage_width),  hall_position[1] + hall_size[1])
         elif connecting_wall == 'bottom':
-            living_room_wall_clear['bottom'] = False
-            passage_position = (hall_position[0], hall_position[1] - passage_height)
+            # living_room_wall_clear['bottom'] = False
+            # if random.random() < 0.5:
+            #     passage_position = (hall_position[0], hall_position[1] - passage_height)
+            # else:
+            #     passage_position = (hall_position[0] + hall_size[0] - passage_width, hall_position[1] - passage_height)
 
+            passage_position = (random.randint(0, self.PLOT_SIZE[0] - passage_width),  hall_position[1] - passage_height)
         # Ensure the passage stays within the plot boundaries
         passage_position = (
             max(0, min(passage_position[0], self.PLOT_SIZE[0] - passage_width)),
