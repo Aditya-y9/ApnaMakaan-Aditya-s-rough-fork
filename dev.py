@@ -1,4 +1,3 @@
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
@@ -419,11 +418,11 @@ class RoomPlanner(object):
 
         # Determine passage width and height based on plot dimensions
         if self.PLOT_SIZE[0] > self.PLOT_SIZE[1]:
-            passage_width = int(0.4 * self.PLOT_SIZE[0])
-            passage_height = self.PLOT_SIZE[1] // 6
+            passage_width = int(0.5 * self.PLOT_SIZE[0])
+            passage_height = self.PLOT_SIZE[1] // 5
         else:
-            passage_width = self.PLOT_SIZE[0] // 6
-            passage_height = int(0.4 * self.PLOT_SIZE[1])
+            passage_width = self.PLOT_SIZE[0] // 5
+            passage_height = int(0.5 * self.PLOT_SIZE[1])
 
         # Determine opposite connecting walls
         opposite_walls = {'left': 'right', 'right': 'left', 'top': 'bottom', 'bottom': 'top'}
